@@ -80,6 +80,24 @@ mod tests {
         assert_eq!(v, MIGRATIONS.len() as i64);
     }
 
+    /// Guards the trimmed SQLite build (src-tauri/.cargo/config.toml).
+    #[test]
+    fn sqlite_build_keeps_fts5_and_drops_unused_features() {
+        let conn = open_in_memory();
+        let options: Vec<String> = conn
+            .prepare("PRAGMA compile_options")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert!(options.iter().any(|o| o == "ENABLE_FTS5"), "{options:?}");
+        for dropped in ["ENABLE_FTS3", "ENABLE_RTREE", "SOUNDEX"] {
+            assert!(!options.iter().any(|o| o == dropped), "{dropped} still on: {options:?}");
+        }
+        assert!(options.iter().any(|o| o == "OMIT_JSON"), "{options:?}");
+    }
+
     #[test]
     fn refuses_newer_schema() {
         let conn = Connection::open_in_memory().unwrap();
