@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { Theme } from '../api';
   import { store } from '../store.svelte';
   import NoteList from './NoteList.svelte';
   import Icon from './Icon.svelte';
@@ -14,7 +13,23 @@
     };
   });
 
-  const nextTheme: Record<Theme, Theme> = { system: 'light', light: 'dark', dark: 'system' };
+  const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+
+  const syncLabel = $derived.by(() => {
+    const s = store.syncStatus;
+    switch (s.state) {
+      case 'off':
+        return 'Sync off';
+      case 'syncing':
+        return 'Syncing…';
+      case 'offline':
+        return 'Offline';
+      case 'error':
+        return 'Sync error';
+      case 'idle':
+        return s.lastSyncedAt ? `Synced ${timeFormat.format(new Date(s.lastSyncedAt))}` : 'Synced';
+    }
+  });
 </script>
 
 <aside class="sidebar">
@@ -45,10 +60,18 @@
   <footer>
     {#if store.filter === 'trash' && store.list.length > 0}
       <button class="link" onclick={() => store.emptyTrash()}>Empty trash</button>
+    {:else}
+      <button
+        class="link sync {store.syncStatus.state}"
+        onclick={() => (store.syncStatus.state === 'off' ? (store.settingsOpen = true) : store.syncNow())}
+        title={store.syncStatus.message ?? (store.syncStatus.state === 'off' ? 'Set up sync' : 'Sync now')}
+      >
+        <span class="dot" aria-hidden="true"></span>{syncLabel}
+      </button>
     {/if}
     <span class="spacer"></span>
-    <button class="link" onclick={() => store.setTheme(nextTheme[store.theme])} title="Change theme">
-      Theme: {store.theme}
+    <button class="link icon" onclick={() => (store.settingsOpen = true)} title="Settings" aria-label="Settings">
+      <Icon name="settings" size={16} />
     </button>
   </footer>
 </aside>
@@ -139,5 +162,34 @@
   }
   .link:hover {
     color: var(--text);
+  }
+  .icon {
+    display: inline-flex;
+  }
+  .sync {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .sync.idle .dot {
+    background: var(--ok);
+  }
+  .sync.syncing .dot {
+    background: var(--accent);
+  }
+  .sync.offline .dot {
+    background: var(--warn);
+  }
+  .sync.error .dot {
+    background: var(--danger);
   }
 </style>

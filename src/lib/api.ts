@@ -27,6 +27,14 @@ export interface Settings {
   syncToken: string | null;
 }
 
+export type SyncState = 'off' | 'idle' | 'syncing' | 'offline' | 'error';
+
+export interface SyncStatus {
+  state: SyncState;
+  lastSyncedAt: number | null;
+  message: string | null;
+}
+
 export const api = {
   listNotes: (filter: ListFilter) => invoke<NoteSummary[]>('list_notes', { filter }),
   getNote: (id: string) => invoke<Note>('get_note', { id }),
@@ -41,7 +49,10 @@ export const api = {
   search: (query: string) => invoke<NoteSummary[]>('search', { query }),
   renderMarkdown: (id: string) => invoke<string>('render_markdown', { id }),
   getSettings: () => invoke<Settings>('get_settings'),
-  setSettings: (settings: Settings) => invoke<void>('set_settings', { settings }),
+  /** Returns the settings as saved (trimmed, URL normalized). */
+  setSettings: (settings: Settings) => invoke<Settings>('set_settings', { settings }),
+  getSyncStatus: () => invoke<SyncStatus>('get_sync_status'),
+  syncNow: () => invoke<SyncStatus>('sync_now'),
 };
 
 export function errorMessage(e: unknown): string {

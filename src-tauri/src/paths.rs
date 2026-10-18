@@ -11,7 +11,10 @@ fn exe_dir() -> Option<PathBuf> {
     if let Some(appimage) = std::env::var_os("APPIMAGE") {
         return Path::new(&appimage).parent().map(Path::to_path_buf);
     }
-    std::env::current_exe().ok()?.parent().map(Path::to_path_buf)
+    std::env::current_exe()
+        .ok()?
+        .parent()
+        .map(Path::to_path_buf)
 }
 
 /// `Some(<exe_dir>/data)` when a `portable` marker file sits next to the app.

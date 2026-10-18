@@ -1,11 +1,12 @@
-# Testing milestones 1–4
+# Testing Ferrite Notes
 
-What's built so far: the skeleton, core notes, tasks, search, and preview (PLAN.md §14, milestones 1–4).
-Sync (milestones 6–7) is not started yet. That follows the plan's order: milestone 5 is a week of
-daily use first.
+What's built so far: milestones 1–4 (the skeleton, core notes, tasks, search, preview) and
+milestones 6–7 (the sync server and the sync client).
 
-Already checked: `cargo test --lib` (12 Rust unit tests pass), `npm run check` (0 errors),
-`npm run build`.
+Already checked: `cargo test --lib` (20 Rust tests, including simulated two-device sync),
+`npm test` in `worker/` (11 Worker tests), `npm run check`, `npm run build`, and clippy.
+Not checked yet: a real Cloudflare deploy and syncing between two running apps. The steps for
+that are in the Sync section below.
 
 ## Run it
 
@@ -57,7 +58,7 @@ The first run compiles Tauri, which takes a few minutes. Later runs are fast.
 - [ ] Paste `<script>alert(1)</script>` and preview it. Nothing runs.
 
 **Theme and layout**
-- [ ] "Theme: …" in the sidebar footer cycles through system, light, and dark.
+- [ ] Settings (gear icon in the sidebar footer) → Theme switches between System, Light, and Dark.
 - [ ] Shrink the window to under 700px wide. The app shows only the list, then only the note after you open one, with a ‹ back button.
 
 **Portable mode (optional)**
@@ -70,3 +71,48 @@ The first run compiles Tauri, which takes a few minutes. Later runs are fast.
 
 ## If something fails
 Send me the error from the terminal running `npm run tauri dev`, or the red toast in the app.
+
+## Sync (milestones 6–7)
+
+Restart `npm run tauri dev` first. The Rust side changed, so hot reload isn't enough.
+
+**1. Deploy your server (one time)**
+```bash
+cd worker
+```
+```bash
+npm install
+```
+```bash
+npx wrangler login
+```
+```bash
+npm run setup
+```
+At the end it prints a **Sync URL** and a **Sync token**. Keep the token private.
+
+- [ ] Open the Sync URL in a browser. It says "Ferrite Notes sync server is running."
+
+**2. Connect the app**
+- [ ] The sidebar footer shows a grey dot and "Sync off". Click it (or the gear icon) to open Settings.
+- [ ] Paste the URL and token, then press Save. The footer goes "Syncing…", then shows a green dot and "Synced HH:MM".
+- [ ] Type in a note. About 3 seconds after you stop, the footer time updates.
+
+**3. Add a second device on the same PC**
+The portable copy has its own data folder, so it acts like a second device.
+- [ ] Run `npm run tauri build`. Copy `src-tauri/target/release/ferrite-notes.exe` into an empty folder and create an empty file named `portable` next to it.
+- [ ] Run it while the dev app is still open. Both windows open.
+- [ ] In the portable app, open Settings and paste the same URL and token. Your notes appear.
+- [ ] Edit a note in one app, then click into the other window. Focusing a window syncs it, and the change shows up.
+- [ ] Trash a note in one app. It moves to the Trash in the other. Empty the trash: it disappears from both.
+
+**4. Conflicts (nothing should be lost)**
+- [ ] Turn off Wi-Fi or unplug the network. Both footers soon show a yellow dot and "Offline".
+- [ ] Edit the **same** note differently in each app.
+- [ ] Turn the network back on and click into each window.
+- [ ] Both apps end up with the newer edit, plus a note titled **"Conflict copy – …"** holding the other edit.
+
+**5. Errors**
+- [ ] In Settings, change one character of the token and Save. The footer shows a red dot and "Sync error"; hover over it to see "The server rejected the sync token". Paste the right token back.
+- [ ] Press "Turn off sync" in Settings. The footer goes back to "Sync off" and the app keeps working offline.
+

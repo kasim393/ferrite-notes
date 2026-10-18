@@ -1,4 +1,14 @@
-import { api, errorMessage, type ListFilter, type Note, type NoteSummary, type Theme } from './api';
+import { listen } from '@tauri-apps/api/event';
+import {
+  api,
+  errorMessage,
+  type ListFilter,
+  type Note,
+  type NoteSummary,
+  type Settings,
+  type SyncStatus,
+  type Theme,
+} from './api';
 
 const SAVE_DELAY_MS = 400;
 const LAST_NOTE_KEY = 'ferrite:lastNote';
@@ -53,6 +63,8 @@ class Store {
   saveStatus = $state<SaveStatus>('saved');
   error = $state<string | null>(null);
   theme = $state<Theme>('system');
+  syncStatus = $state<SyncStatus>({ state: 'off', lastSyncedAt: null, message: null });
+  settingsOpen = $state(false);
 
   get preview(): boolean {
     return this.current != null && this.previewIds.includes(this.current.id);
@@ -72,6 +84,10 @@ class Store {
     try {
       const settings = await api.getSettings();
       this.setTheme(settings.theme, false);
+      // Rust pushes sync progress and remote changes as events; no polling here.
+      await listen<SyncStatus>('sync-status', (e) => (this.syncStatus = e.payload));
+      await listen<string[]>('notes-changed', (e) => void this.onRemoteChanges(e.payload));
+      this.syncStatus = await api.getSyncStatus();
     } catch (e) {
       this.fail(e);
     }
@@ -79,6 +95,50 @@ class Store {
     const last = recalled();
     const target = this.list.find((n) => n.id === last) ?? this.list[0];
     if (target) await this.open(target.id);
+  }
+
+  /** Notes changed on another device and were just pulled in. */
+  async onRemoteChanges(ids: string[]) {
+    await this.refresh();
+    const note = this.current;
+    // Never swap the text out from under unsaved typing; it is merged on the next sync.
+    if (!note || !ids.includes(note.id) || this.saveStatus !== 'saved') return;
+    try {
+      const fresh = await api.getNote(note.id);
+      if (fresh.body !== note.body) {
+        this.current = fresh;
+        this.docVersion++;
+      } else {
+        note.pinned = fresh.pinned;
+        note.deleted = fresh.deleted;
+        note.updatedAt = fresh.updatedAt;
+      }
+    } catch {
+      // Purged on another device.
+      this.current = null;
+    }
+  }
+
+  async syncNow() {
+    try {
+      this.syncStatus = await api.syncNow();
+    } catch (e) {
+      this.fail(e);
+    }
+  }
+
+  /** Saves sync settings; returns false (and shows the error) if they were rejected. */
+  async saveSync(syncUrl: string, syncToken: string): Promise<boolean> {
+    try {
+      const current = await api.getSettings();
+      const next: Settings = { ...current, syncUrl, syncToken };
+      await api.setSettings(next);
+      this.syncStatus = await api.getSyncStatus();
+      return true;
+    } catch (e) {
+      this.fail(e);
+      return false;
+    }
   }
 
   fail(e: unknown) {

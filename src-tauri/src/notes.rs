@@ -54,7 +54,11 @@ fn summary_from_row(row: &Row, fts_snippet: bool) -> rusqlite::Result<NoteSummar
     let head: String = row.get(1)?;
     let (title, mut snippet) = title_and_snippet(&head);
     if fts_snippet {
-        snippet = row.get::<_, String>(5)?.split_whitespace().collect::<Vec<_>>().join(" ");
+        snippet = row
+            .get::<_, String>(5)?
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
     }
     Ok(NoteSummary {
         id: row.get(0)?,
@@ -96,10 +100,12 @@ pub fn list(conn: &Connection, filter: ListFilter) -> AppResult<Vec<NoteSummary>
 }
 
 pub fn get(conn: &Connection, id: &str) -> AppResult<Note> {
-    conn.prepare_cached("SELECT id, body, pinned, deleted, updated_at FROM notes WHERE id = ?1")?
-        .query_row([id], note_from_row)
-        .optional()?
-        .ok_or(AppError::NotFound)
+    conn.prepare_cached(
+        "SELECT id, body, pinned, deleted, updated_at FROM notes WHERE id = ?1 AND deleted < 2",
+    )?
+    .query_row([id], note_from_row)
+    .optional()?
+    .ok_or(AppError::NotFound)
 }
 
 pub fn create(conn: &Connection) -> AppResult<Note> {
@@ -121,14 +127,14 @@ pub fn save(conn: &Connection, id: &str, body: &str) -> AppResult<i64> {
     let updated: Option<i64> = conn
         .prepare_cached(
             "UPDATE notes SET body = ?2, updated_at = MAX(?3, updated_at + 1), dirty = 1
-             WHERE id = ?1 AND body <> ?2 RETURNING updated_at",
+             WHERE id = ?1 AND deleted < 2 AND body <> ?2 RETURNING updated_at",
         )?
         .query_row(params![id, body, now_ms()], |r| r.get(0))
         .optional()?;
     match updated {
         Some(t) => Ok(t),
         None => conn
-            .prepare_cached("SELECT updated_at FROM notes WHERE id = ?1")?
+            .prepare_cached("SELECT updated_at FROM notes WHERE id = ?1 AND deleted < 2")?
             .query_row([id], |r| r.get(0))
             .optional()?
             .ok_or(AppError::NotFound),
@@ -139,9 +145,12 @@ fn set_flag(conn: &Connection, id: &str, column: &str, value: bool) -> AppResult
     // `column` is always one of our own literals, never user input.
     let sql = format!(
         "UPDATE notes SET {column} = ?2, updated_at = MAX(?3, updated_at + 1), dirty = 1
-         WHERE id = ?1"
+         WHERE id = ?1 AND deleted < 2"
     );
-    match conn.prepare_cached(&sql)?.execute(params![id, value, now_ms()])? {
+    match conn
+        .prepare_cached(&sql)?
+        .execute(params![id, value, now_ms()])?
+    {
         0 => Err(AppError::NotFound),
         _ => Ok(()),
     }
@@ -155,28 +164,69 @@ pub fn set_deleted(conn: &Connection, id: &str, deleted: bool) -> AppResult<()> 
     set_flag(conn, id, "deleted", deleted)
 }
 
-pub fn purge_trash(conn: &Connection) -> AppResult<()> {
-    conn.execute("DELETE FROM notes WHERE deleted = 1", [])?;
-    Ok(())
+/// Permanently removes trashed notes. With sync on, each becomes a tombstone
+/// (body cleared, `deleted = 2`) until the purge reaches the server.
+pub fn purge_trash(conn: &Connection, sync_on: bool) -> AppResult<()> {
+    purge_trashed_before(conn, i64::MAX, sync_on)
 }
 
 /// Removes notes that have sat in the trash longer than `max_age_ms`.
-pub fn purge_old_trash(conn: &Connection, max_age_ms: i64) -> AppResult<()> {
-    conn.execute(
-        "DELETE FROM notes WHERE deleted = 1 AND updated_at < ?1",
-        [now_ms() - max_age_ms],
-    )?;
+pub fn purge_old_trash(conn: &Connection, max_age_ms: i64, sync_on: bool) -> AppResult<()> {
+    purge_trashed_before(conn, now_ms() - max_age_ms, sync_on)
+}
+
+fn purge_trashed_before(conn: &Connection, cutoff: i64, sync_on: bool) -> AppResult<()> {
+    if sync_on {
+        conn.execute(
+            "UPDATE notes SET deleted = 2, body = '', dirty = 1, updated_at = MAX(?2, updated_at + 1)
+             WHERE deleted = 1 AND updated_at < ?1",
+            params![cutoff, now_ms()],
+        )?;
+    } else {
+        conn.execute(
+            "DELETE FROM notes WHERE deleted = 1 AND updated_at < ?1",
+            [cutoff],
+        )?;
+    }
     Ok(())
 }
 
-/// Deletes a note that was never written in, so stray "new note" presses
+/// Drops tombstones that no longer need to reach the server.
+pub fn clean_up_purged(conn: &Connection, sync_on: bool) -> AppResult<()> {
+    let filter = if sync_on {
+        "deleted = 2 AND dirty = 0"
+    } else {
+        "deleted = 2"
+    };
+    conn.execute(&format!("DELETE FROM notes WHERE {filter}"), [])?;
+    Ok(())
+}
+
+/// Removes a note that was never written in, so stray "new note" presses
 /// don't leave empty notes behind. Returns true if it was removed.
-pub fn discard_if_empty(conn: &Connection, id: &str) -> AppResult<bool> {
-    let n = conn.execute(
-        "DELETE FROM notes WHERE id = ?1 AND trim(body, ' ' || char(9, 10, 13)) = ''",
-        [id],
-    )?;
-    Ok(n > 0)
+pub fn discard_if_empty(conn: &Connection, id: &str, sync_on: bool) -> AppResult<bool> {
+    let blank: Option<bool> = conn
+        .query_row(
+            "SELECT server_rev > 0 FROM notes
+             WHERE id = ?1 AND deleted < 2 AND trim(body, ' ' || char(9, 10, 13)) = ''",
+            [id],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let Some(synced) = blank else {
+        return Ok(false);
+    };
+    if sync_on && synced {
+        // The server already has it: leave a tombstone so other devices drop it too.
+        conn.execute(
+            "UPDATE notes SET deleted = 2, body = '', dirty = 1, updated_at = MAX(?2, updated_at + 1)
+             WHERE id = ?1",
+            params![id, now_ms()],
+        )?;
+    } else {
+        conn.execute("DELETE FROM notes WHERE id = ?1", [id])?;
+    }
+    Ok(true)
 }
 
 pub fn toggle_task(conn: &Connection, id: &str, line_no: usize) -> AppResult<Note> {
@@ -328,7 +378,10 @@ mod tests {
 
         let note = toggle_task(&conn, &a.id, 2).unwrap();
         assert_eq!(note.body, "Groceries\n- [ ] milk\n- [x] bread");
-        assert!(matches!(toggle_task(&conn, &a.id, 0), Err(AppError::NotATask)));
+        assert!(matches!(
+            toggle_task(&conn, &a.id, 0),
+            Err(AppError::NotATask)
+        ));
 
         set_pinned(&conn, &b.id, true).unwrap();
         assert_eq!(list(&conn, ListFilter::Notes).unwrap()[0].id, b.id);
@@ -336,7 +389,7 @@ mod tests {
         set_deleted(&conn, &b.id, true).unwrap();
         assert!(search(&conn, "safari").unwrap().is_empty());
         assert_eq!(list(&conn, ListFilter::Trash).unwrap().len(), 1);
-        purge_trash(&conn).unwrap();
+        purge_trash(&conn, false).unwrap();
         assert!(list(&conn, ListFilter::Trash).unwrap().is_empty());
         assert!(search(&conn, "safari").unwrap().is_empty());
     }
@@ -360,7 +413,7 @@ mod tests {
         save(&conn, &empty.id, " \n\t").unwrap();
         let full = create(&conn).unwrap();
         save(&conn, &full.id, "keep").unwrap();
-        assert!(discard_if_empty(&conn, &empty.id).unwrap());
-        assert!(!discard_if_empty(&conn, &full.id).unwrap());
+        assert!(discard_if_empty(&conn, &empty.id, false).unwrap());
+        assert!(!discard_if_empty(&conn, &full.id, false).unwrap());
     }
 }

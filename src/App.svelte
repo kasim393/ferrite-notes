@@ -6,6 +6,7 @@
   import Editor from './lib/components/Editor.svelte';
   import Preview from './lib/components/Preview.svelte';
   import Icon from './lib/components/Icon.svelte';
+  import SettingsDialog from './lib/components/SettingsDialog.svelte';
 
   const statusText = { saved: 'Saved', unsaved: 'Editing…', saving: 'Saving…', error: 'Not saved' };
 
@@ -124,6 +125,8 @@
       </div>
     {/if}
   </main>
+
+  <SettingsDialog />
 
   {#if store.error}
     <div class="toast" role="alert">

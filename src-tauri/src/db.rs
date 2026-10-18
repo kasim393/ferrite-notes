@@ -6,7 +6,10 @@ use rusqlite::{Connection, OptionalExtension};
 use crate::error::{AppError, AppResult};
 
 /// Schema migrations; `PRAGMA user_version` = number applied.
-const MIGRATIONS: &[&str] = &[include_str!("../migrations/001_init.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("../migrations/001_init.sql"),
+    include_str!("../migrations/002_sync.sql"),
+];
 
 pub fn open(path: &Path) -> AppResult<Connection> {
     let conn = Connection::open(path)?;
@@ -71,7 +74,9 @@ mod tests {
     fn migrations_are_idempotent() {
         let conn = open_in_memory();
         migrate(&conn).unwrap();
-        let v: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
+        let v: i64 = conn
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(v, MIGRATIONS.len() as i64);
     }
 

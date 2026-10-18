@@ -5,41 +5,60 @@ mod markdown;
 mod notes;
 mod paths;
 mod settings;
+mod sync;
 mod util;
 
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::Connection;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, WindowEvent};
 
 use error::{AppError, AppResult};
 use notes::{ListFilter, Note, NoteSummary};
 use settings::Settings;
+use sync::{Sync, SyncConfig, SyncStatus, Trigger};
 
 const TRASH_MAX_AGE_MS: i64 = 30 * util::DAY_MS;
 
 pub struct AppState {
     db: Mutex<Connection>,
     settings: Mutex<Settings>,
+    sync: Sync,
     data_dir: PathBuf,
 }
 
 impl AppState {
     fn conn(&self) -> AppResult<MutexGuard<'_, Connection>> {
-        self.db.lock().map_err(|_| AppError::Other("Database is unavailable".into()))
+        self.db
+            .lock()
+            .map_err(|_| AppError::Other("Database is unavailable".into()))
     }
 
     fn settings(&self) -> AppResult<MutexGuard<'_, Settings>> {
-        self.settings.lock().map_err(|_| AppError::Other("Settings are unavailable".into()))
+        self.settings
+            .lock()
+            .map_err(|_| AppError::Other("Settings are unavailable".into()))
+    }
+
+    fn sync_config(&self) -> Option<SyncConfig> {
+        self.settings().ok()?.sync_config()
+    }
+
+    fn sync_on(&self) -> bool {
+        self.sync_config().is_some()
     }
 }
 
-fn init_state(app: &AppHandle) -> AppResult<AppState> {
+fn init_state(app: &AppHandle, sync: Sync) -> AppResult<AppState> {
     let data_dir = paths::data_dir(app)?;
+    let settings = settings::load(&data_dir.join("settings.json"));
+    let sync_on = settings.sync_config().is_some();
+
     let db_path = data_dir.join("notes.db");
     let conn = db::open(&db_path)?;
-    notes::purge_old_trash(&conn, TRASH_MAX_AGE_MS)?;
+    notes::purge_old_trash(&conn, TRASH_MAX_AGE_MS, sync_on)?;
+    notes::clean_up_purged(&conn, sync_on)?;
 
     let backup_db = db_path.clone();
     let backup_dir = data_dir.clone();
@@ -51,7 +70,8 @@ fn init_state(app: &AppHandle) -> AppResult<AppState> {
 
     Ok(AppState {
         db: Mutex::new(conn),
-        settings: Mutex::new(settings::load(&data_dir.join("settings.json"))),
+        settings: Mutex::new(settings),
+        sync,
         data_dir,
     })
 }
@@ -68,7 +88,9 @@ async fn get_note(state: State<'_, AppState>, id: String) -> AppResult<Note> {
 
 #[tauri::command]
 async fn save_note(state: State<'_, AppState>, id: String, body: String) -> AppResult<i64> {
-    notes::save(&*state.conn()?, &id, &body)
+    let updated_at = notes::save(&*state.conn()?, &id, &body)?;
+    state.sync.edited();
+    Ok(updated_at)
 }
 
 #[tauri::command]
@@ -78,32 +100,48 @@ async fn create_note(state: State<'_, AppState>) -> AppResult<Note> {
 
 #[tauri::command]
 async fn discard_if_empty(state: State<'_, AppState>, id: String) -> AppResult<bool> {
-    notes::discard_if_empty(&*state.conn()?, &id)
+    let sync_on = state.sync_on();
+    let discarded = notes::discard_if_empty(&*state.conn()?, &id, sync_on)?;
+    if discarded {
+        state.sync.edited();
+    }
+    Ok(discarded)
 }
 
 #[tauri::command]
 async fn toggle_task(state: State<'_, AppState>, id: String, line_no: usize) -> AppResult<Note> {
-    notes::toggle_task(&*state.conn()?, &id, line_no)
+    let note = notes::toggle_task(&*state.conn()?, &id, line_no)?;
+    state.sync.edited();
+    Ok(note)
 }
 
 #[tauri::command]
 async fn set_pinned(state: State<'_, AppState>, id: String, pinned: bool) -> AppResult<()> {
-    notes::set_pinned(&*state.conn()?, &id, pinned)
+    notes::set_pinned(&*state.conn()?, &id, pinned)?;
+    state.sync.edited();
+    Ok(())
 }
 
 #[tauri::command]
 async fn trash_note(state: State<'_, AppState>, id: String) -> AppResult<()> {
-    notes::set_deleted(&*state.conn()?, &id, true)
+    notes::set_deleted(&*state.conn()?, &id, true)?;
+    state.sync.edited();
+    Ok(())
 }
 
 #[tauri::command]
 async fn restore_note(state: State<'_, AppState>, id: String) -> AppResult<()> {
-    notes::set_deleted(&*state.conn()?, &id, false)
+    notes::set_deleted(&*state.conn()?, &id, false)?;
+    state.sync.edited();
+    Ok(())
 }
 
 #[tauri::command]
 async fn purge_trash(state: State<'_, AppState>) -> AppResult<()> {
-    notes::purge_trash(&*state.conn()?)
+    let sync_on = state.sync_on();
+    notes::purge_trash(&*state.conn()?, sync_on)?;
+    state.sync.edited();
+    Ok(())
 }
 
 #[tauri::command]
@@ -122,16 +160,47 @@ async fn get_settings(state: State<'_, AppState>) -> AppResult<Settings> {
     Ok(state.settings()?.clone())
 }
 
+/// Saves settings and returns them cleaned up (trimmed, URL normalized).
 #[tauri::command]
-async fn set_settings(state: State<'_, AppState>, settings: Settings) -> AppResult<()> {
+async fn set_settings(state: State<'_, AppState>, settings: Settings) -> AppResult<Settings> {
+    let settings = settings.normalized()?;
+    let previous = state.settings()?.clone();
     settings::save(&state.data_dir.join("settings.json"), &settings)?;
-    *state.settings()? = settings;
-    Ok(())
+
+    let url_changed = previous.sync_url != settings.sync_url;
+    let sync_on = settings.sync_config().is_some();
+    *state.settings()? = settings.clone();
+    {
+        let conn = state.conn()?;
+        if url_changed && sync_on {
+            // A different server knows nothing about our notes: send them all.
+            sync::reset_state(&conn)?;
+        }
+        if !sync_on {
+            notes::clean_up_purged(&conn, false)?;
+        }
+    }
+    if url_changed || previous.sync_token != settings.sync_token {
+        state.sync.trigger(Trigger::Now);
+    }
+    Ok(settings)
+}
+
+#[tauri::command]
+async fn get_sync_status(state: State<'_, AppState>) -> AppResult<SyncStatus> {
+    Ok(state.sync.status())
+}
+
+#[tauri::command]
+async fn sync_now(app: AppHandle) -> AppResult<SyncStatus> {
+    Ok(sync::sync_once(&app).await)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let portable = paths::portable_dir();
+    // TLS for sync uses rustls with the small `ring` crypto backend.
+    let _ = rustls::crypto::ring::default_provider().install_default();
 
     // Keep the webview's own data beside the app too, so portable mode
     // writes nothing to the host machine.
@@ -143,8 +212,11 @@ pub fn run() {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
 
+    // Installed mode only: a portable copy has its own data folder, so it may run
+    // beside the installed app (handy as a second "device" for testing sync).
     #[cfg(desktop)]
-    {
+    if portable.is_none() {
+        use tauri_plugin_window_state::StateFlags;
         // Must be the first plugin registered.
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -153,23 +225,28 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }));
-        if portable.is_none() {
-            use tauri_plugin_window_state::StateFlags;
-            builder = builder.plugin(
-                tauri_plugin_window_state::Builder::new()
-                    // The UI shows the window itself after first render.
-                    .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
-                    .build(),
-            );
-        }
+        builder = builder.plugin(
+            tauri_plugin_window_state::Builder::new()
+                // The UI shows the window itself after first render.
+                .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
+                .build(),
+        );
     }
 
     builder
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let state = init_state(app.handle())?;
-            app.manage(state);
+            let (sync, triggers) = Sync::new();
+            app.manage(init_state(app.handle(), sync)?);
+            tauri::async_runtime::spawn(sync::run_loop(app.handle().clone(), triggers));
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::Focused(true) = event {
+                if let Some(state) = window.try_state::<AppState>() {
+                    state.sync.trigger(Trigger::Now);
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             list_notes,
@@ -186,6 +263,8 @@ pub fn run() {
             render_markdown,
             get_settings,
             set_settings,
+            get_sync_status,
+            sync_now,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Ferrite Notes");

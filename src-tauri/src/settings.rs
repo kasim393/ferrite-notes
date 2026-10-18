@@ -3,9 +3,10 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
+use crate::sync::SyncConfig;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     /// "system" | "light" | "dark"
@@ -16,7 +17,56 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { theme: "system".into(), sync_url: None, sync_token: None }
+        Self {
+            theme: "system".into(),
+            sync_url: None,
+            sync_token: None,
+        }
+    }
+}
+
+// Hand-written so the token can never end up in a log.
+impl std::fmt::Debug for Settings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Settings")
+            .field("theme", &self.theme)
+            .field("sync_url", &self.sync_url)
+            .field(
+                "sync_token",
+                &self.sync_token.as_ref().map(|_| "<redacted>"),
+            )
+            .finish()
+    }
+}
+
+impl Settings {
+    /// Trims fields, turns blanks into `None`, and checks the sync URL.
+    pub fn normalized(mut self) -> AppResult<Self> {
+        let clean = |v: Option<String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+        self.sync_token = clean(self.sync_token);
+        self.sync_url = clean(self.sync_url).map(|u| {
+            let u = u.trim_end_matches('/');
+            u.strip_suffix("/sync").unwrap_or(u).to_string()
+        });
+        if let Some(url) = &self.sync_url {
+            let local = ["http://localhost", "http://127.0.0.1"]
+                .iter()
+                .any(|p| url.starts_with(p));
+            if !url.starts_with("https://") && !local {
+                return Err(AppError::Other(
+                    "The sync URL must start with https://".into(),
+                ));
+            }
+        }
+        Ok(self)
+    }
+
+    /// `Some` when both the URL and token are set.
+    pub fn sync_config(&self) -> Option<SyncConfig> {
+        Some(SyncConfig {
+            endpoint: format!("{}/sync", self.sync_url.as_ref()?),
+            token: self.sync_token.clone()?,
+        })
     }
 }
 
