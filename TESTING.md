@@ -41,6 +41,8 @@ The first run compiles Tauri, which takes a few minutes. Later runs are fast.
 - [ ] Click a checkbox. It toggles, and checked lines turn grey (no strikethrough). `Ctrl+Z` undoes the toggle.
 - [ ] Backspace right after a checkbox removes the whole checkbox in one press.
 - [ ] `Ctrl+Enter` toggles the task on the current line. On a plain line it turns the line into a task. On an empty line the cursor ends up after the new checkbox.
+- [ ] Select several task lines and press `Ctrl+Enter`: all get checked. Press it again: all get unchecked. Select a mix of checked and unchecked tasks: all get checked.
+- [ ] Select several plain-text lines and press `Ctrl+Enter`: each becomes a task (blank lines are skipped).
 - [ ] Indented sub-tasks (press Tab before `- [ ]`) also get checkboxes. `1. [ ] numbered` works too.
 
 **Search**

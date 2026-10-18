@@ -3,6 +3,7 @@
   import type { Theme } from '../api';
   import { store } from '../store.svelte';
   import NoteList from './NoteList.svelte';
+  import Icon from './Icon.svelte';
 
   let search: HTMLInputElement;
 
@@ -27,7 +28,9 @@
       aria-label="Search notes"
       disabled={store.filter === 'trash'}
     />
-    <button class="new" onclick={() => store.create()} title="New note (Ctrl+N)" aria-label="New note">+</button>
+    <button class="new" onclick={() => store.create()} title="New note (Ctrl+N)" aria-label="New note">
+      <Icon name="plus" />
+    </button>
   </header>
 
   <nav class="tabs">
@@ -54,6 +57,7 @@
   .sidebar {
     display: flex;
     flex-direction: column;
+    min-width: 0;
     min-height: 0;
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -78,6 +82,10 @@
     outline-offset: -1px;
   }
   .new {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     width: 34px;
     border: 0;
     border-radius: 8px;

@@ -5,6 +5,7 @@
   import Sidebar from './lib/components/Sidebar.svelte';
   import Editor from './lib/components/Editor.svelte';
   import Preview from './lib/components/Preview.svelte';
+  import Icon from './lib/components/Icon.svelte';
 
   const statusText = { saved: 'Saved', unsaved: 'Editing…', saving: 'Saving…', error: 'Not saved' };
 
@@ -76,20 +77,36 @@
     {#if store.current}
       {@const note = store.current}
       <div class="toolbar">
-        <button class="icon back" onclick={() => store.close()} aria-label="Back to list">‹</button>
+        <button class="back" onclick={() => store.close()} aria-label="Back to list" title="Back to list">
+          <Icon name="back" />
+        </button>
         <span class="status" class:error={store.saveStatus === 'error'}>{statusText[store.saveStatus]}</span>
         <span class="spacer"></span>
         {#if note.deleted}
-          <button onclick={() => store.restore()}>Restore</button>
+          <button onclick={() => store.restore()} aria-label="Restore" title="Restore">
+            <Icon name="restore" />
+          </button>
         {:else}
-          <button class:on={store.preview} onclick={() => store.togglePreview()} title="Preview (Ctrl+P)">
-            {store.preview ? 'Edit' : 'Preview'}
+          {@const previewLabel = store.preview ? 'Edit (Ctrl+P)' : 'Preview (Ctrl+P)'}
+          {@const pinLabel = note.pinned ? 'Unpin (Ctrl+Shift+P)' : 'Pin (Ctrl+Shift+P)'}
+          <button onclick={() => store.togglePreview()} aria-label={previewLabel} title={previewLabel}>
+            <Icon name={store.preview ? 'edit' : 'eye'} />
           </button>
-          <button class:on={note.pinned} onclick={() => store.togglePin()} title="Pin (Ctrl+Shift+P)">
-            {note.pinned ? 'Unpin' : 'Pin'}
+          <button
+            class:on={note.pinned}
+            onclick={() => store.togglePin()}
+            aria-label={pinLabel}
+            aria-pressed={note.pinned}
+            title={pinLabel}
+          >
+            <Icon name="pin" filled={note.pinned} />
           </button>
-          <button onclick={() => store.trash()} title="Move to trash (Ctrl+Backspace outside the editor)">
-            Trash
+          <button
+            onclick={() => store.trash()}
+            aria-label="Move to trash"
+            title="Move to trash (Ctrl+Backspace outside the editor)"
+          >
+            <Icon name="trash" />
           </button>
         {/if}
       </div>
@@ -119,7 +136,7 @@
 <style>
   .app {
     display: grid;
-    grid-template-columns: minmax(220px, 300px) 1fr;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
     height: 100vh;
     height: 100dvh;
   }
@@ -132,17 +149,22 @@
   .toolbar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
+    gap: 2px;
+    height: 40px;
+    flex-shrink: 0;
+    padding: 0 6px 0 12px;
     border-bottom: 1px solid var(--border);
   }
   .toolbar button {
-    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
     background: none;
     color: var(--text-muted);
-    font: inherit;
-    font-size: 0.88em;
-    padding: 4px 10px;
     border-radius: 6px;
     cursor: pointer;
   }
@@ -152,12 +174,10 @@
   }
   .toolbar button.on {
     color: var(--accent);
-    border-color: var(--border);
   }
-  .back {
+  .toolbar .back {
     display: none;
-    font-size: 1.4em !important;
-    line-height: 1;
+    margin-left: -6px;
   }
   .status {
     color: var(--text-muted);
@@ -208,14 +228,14 @@
   /* Phone: list screen → note screen. */
   @media (max-width: 700px) {
     .app {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
     .app.has-note :global(.sidebar),
     .app:not(.has-note) .pane {
       display: none;
     }
-    .back {
-      display: inline-block;
+    .toolbar .back {
+      display: inline-flex;
     }
   }
 </style>

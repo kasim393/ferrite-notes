@@ -1,4 +1,4 @@
-import { RangeSetBuilder, type Line } from '@codemirror/state';
+import { RangeSetBuilder, type ChangeSpec, type EditorState, type Line } from '@codemirror/state';
 import {
   Decoration,
   EditorView,
@@ -135,14 +135,54 @@ const bracketShortcut = EditorView.inputHandler.of((view, from, to, text) => {
   return true;
 });
 
-/** Mod-Enter: toggle the task on the current line, or turn the line into a task. */
+/** Every line touched by the selection, once each, top to bottom. */
+function selectedLines(state: EditorState): Line[] {
+  const numbers = new Set<number>();
+  for (const r of state.selection.ranges) {
+    const first = state.doc.lineAt(r.from).number;
+    let last = state.doc.lineAt(r.to).number;
+    // A selection ending at the very start of a line doesn't include that line.
+    if (last > first && state.doc.line(last).from === r.to) last--;
+    for (let n = first; n <= last; n++) numbers.add(n);
+  }
+  return [...numbers].sort((a, b) => a - b).map((n) => state.doc.line(n));
+}
+
+/**
+ * Mod-Enter on the selected lines (or the cursor's line):
+ * - all tasks: check them all, or uncheck them all if they're all already checked;
+ * - otherwise: turn the lines that aren't tasks yet into tasks.
+ * Blank lines in a multi-line selection are left alone.
+ */
 const toggleTask: Command = (view) => {
   const { state } = view;
-  const line = state.doc.lineAt(state.selection.main.head);
-  if (toggleLine(view, line)) return true;
-  const item = ITEM_RE.exec(line.text);
-  const insertAt = item ? line.from + item[0].length : line.from + /^\s*/.exec(line.text)![0].length;
-  const changes = state.changes({ from: insertAt, insert: item ? '[ ] ' : TASK_PREFIX });
+  let lines = selectedLines(state);
+  if (lines.length > 1) lines = lines.filter((l) => l.text.trim() !== '');
+  if (lines.length === 0) return true;
+
+  const found = lines.map((line) => ({ line, m: TASK_RE.exec(line.text) }));
+  let specs: ChangeSpec[];
+  if (found.every(({ m }) => m)) {
+    const check = found.some(({ m }) => m![3] === ' ');
+    specs = found
+      .filter(({ m }) => (m![3] === ' ') === check)
+      .map(({ line, m }) => {
+        const at = markPos(line, m!);
+        return { from: at, to: at + 1, insert: check ? 'x' : ' ' };
+      });
+  } else {
+    specs = found
+      .filter(({ m }) => !m)
+      .map(({ line }) => {
+        const item = ITEM_RE.exec(line.text);
+        const indent = /^\s*/.exec(line.text)![0].length;
+        return {
+          from: item ? line.from + item[0].length : line.from + indent,
+          insert: item ? '[ ] ' : TASK_PREFIX,
+        };
+      });
+  }
+  const changes = state.changes(specs);
   view.dispatch({
     changes,
     // assoc 1: a cursor sitting where the prefix goes ends up after it.
