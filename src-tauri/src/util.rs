@@ -15,6 +15,13 @@ pub fn today_utc() -> String {
     format!("{y:04}-{m:02}-{d:02}")
 }
 
+/// UTC (year, month, day, hour, minute, second) for a ms timestamp.
+pub fn utc_parts(ms: i64) -> (i64, u32, u32, u32, u32, u32) {
+    let (y, m, d) = civil_from_days(ms.div_euclid(DAY_MS));
+    let secs = ms.rem_euclid(DAY_MS) / 1000;
+    (y, m, d, (secs / 3600) as u32, (secs / 60 % 60) as u32, (secs % 60) as u32)
+}
+
 /// Days since 1970-01-01 to (year, month, day). Howard Hinnant's algorithm.
 fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let z = z + 719_468;

@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "package:portable": "node scripts/package-portable.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

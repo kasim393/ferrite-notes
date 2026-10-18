@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { api, type Theme } from '../api';
+  import { revealItemInDir } from '@tauri-apps/plugin-opener';
+  import { api, type StorageInfo, type Theme } from '../api';
   import { store } from '../store.svelte';
   import Icon from './Icon.svelte';
 
@@ -9,6 +10,9 @@
   let showToken = $state(false);
   let saving = $state(false);
   let saved = $state(false);
+  let storage = $state<StorageInfo | null>(null);
+  let exporting = $state(false);
+  let exported = $state<string | null>(null);
 
   $effect(() => {
     if (store.settingsOpen) void open();
@@ -20,11 +24,13 @@
       const s = await api.getSettings();
       syncUrl = s.syncUrl ?? '';
       syncToken = s.syncToken ?? '';
+      storage = await api.getStorageInfo();
     } catch (e) {
       store.fail(e);
     }
     showToken = false;
     saved = false;
+    exported = null;
     if (!dialog.open) dialog.showModal();
   }
 
@@ -33,6 +39,23 @@
     saving = true;
     saved = await store.saveSync(syncUrl, syncToken);
     saving = false;
+  }
+
+  async function exportAll() {
+    exporting = true;
+    try {
+      await store.flush();
+      exported = await api.exportNotes();
+      await revealItemInDir(exported);
+    } catch (e) {
+      store.fail(e);
+    } finally {
+      exporting = false;
+    }
+  }
+
+  function openDataFolder() {
+    if (storage) revealItemInDir(storage.dbPath).catch((e) => store.fail(e));
   }
 
   async function disconnect() {
@@ -76,6 +99,31 @@
           onclick={() => store.setTheme(t.value)}>{t.label}</button
         >
       {/each}
+    </div>
+  </section>
+
+  <section>
+    <h3>Your notes</h3>
+    {#if storage}
+      <p class="hint">
+        {storage.portable ? 'Portable mode. Notes are saved next to the app in:' : 'Notes are saved in:'}
+        <code class="path">{storage.dataDir}</code>
+      </p>
+    {/if}
+    <p class="hint">
+      Export saves every note as a plain <code>.md</code> file in one zip, readable in any text
+      editor. Trashed notes go in a <code>Trash</code> folder.
+    </p>
+    {#if exported}
+      <p class="status" role="status">Exported to <code class="path">{exported}</code></p>
+    {/if}
+    <div class="actions">
+      <button type="button" class="secondary" onclick={openDataFolder} disabled={!storage}>
+        Open data folder
+      </button>
+      <button type="button" class="secondary" onclick={exportAll} disabled={exporting}>
+        {exporting ? 'Exporting…' : 'Export all notes'}
+      </button>
     </div>
   </section>
 
@@ -172,6 +220,12 @@
   code {
     font-family: var(--font-mono);
     font-size: 0.92em;
+  }
+  .path {
+    display: block;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+    color: var(--text);
   }
   form {
     display: flex;

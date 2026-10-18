@@ -1,6 +1,7 @@
 mod backup;
 mod db;
 mod error;
+mod export;
 mod markdown;
 mod notes;
 mod paths;
@@ -186,6 +187,31 @@ async fn set_settings(state: State<'_, AppState>, settings: Settings) -> AppResu
     Ok(settings)
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StorageInfo {
+    portable: bool,
+    data_dir: String,
+    db_path: String,
+}
+
+#[tauri::command]
+async fn get_storage_info(state: State<'_, AppState>) -> AppResult<StorageInfo> {
+    Ok(StorageInfo {
+        portable: paths::portable_dir().is_some(),
+        data_dir: state.data_dir.to_string_lossy().into_owned(),
+        db_path: state.data_dir.join("notes.db").to_string_lossy().into_owned(),
+    })
+}
+
+/// Exports every note as `.md` files in a zip; returns the zip's path.
+#[tauri::command]
+async fn export_notes(app: AppHandle, state: State<'_, AppState>) -> AppResult<String> {
+    let dir = paths::export_dir(&app, &state.data_dir);
+    let path = export::export_zip(&*state.conn()?, &dir)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 #[tauri::command]
 async fn get_sync_status(state: State<'_, AppState>) -> AppResult<SyncStatus> {
     Ok(state.sync.status())
@@ -265,6 +291,8 @@ pub fn run() {
             set_settings,
             get_sync_status,
             sync_now,
+            get_storage_info,
+            export_notes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Ferrite Notes");

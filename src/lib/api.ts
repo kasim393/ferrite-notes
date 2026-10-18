@@ -35,6 +35,12 @@ export interface SyncStatus {
   message: string | null;
 }
 
+export interface StorageInfo {
+  portable: boolean;
+  dataDir: string;
+  dbPath: string;
+}
+
 export const api = {
   listNotes: (filter: ListFilter) => invoke<NoteSummary[]>('list_notes', { filter }),
   getNote: (id: string) => invoke<Note>('get_note', { id }),
@@ -53,6 +59,9 @@ export const api = {
   setSettings: (settings: Settings) => invoke<Settings>('set_settings', { settings }),
   getSyncStatus: () => invoke<SyncStatus>('get_sync_status'),
   syncNow: () => invoke<SyncStatus>('sync_now'),
+  getStorageInfo: () => invoke<StorageInfo>('get_storage_info'),
+  /** Writes a zip of .md files and returns its path. */
+  exportNotes: () => invoke<string>('export_notes'),
 };
 
 export function errorMessage(e: unknown): string {

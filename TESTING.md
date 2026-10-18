@@ -1,9 +1,9 @@
 # Testing Ferrite Notes
 
 What's built so far: milestones 1–4 (the skeleton, core notes, tasks, search, preview) and
-milestones 6–7 (the sync server and the sync client).
+milestones 6–7 (the sync server and the sync client), and from milestone 8 the portable zip, export, and data folder info.
 
-Already checked: `cargo test --lib` (20 Rust tests, including simulated two-device sync),
+Already checked: `cargo test --lib` (22 Rust tests, including simulated two-device sync and export),
 `npm test` in `worker/` (11 Worker tests), `npm run check`, `npm run build`, and clippy.
 Not checked yet: a real Cloudflare deploy and syncing between two running apps. The steps for
 that are in the Sync section below.
@@ -61,9 +61,13 @@ The first run compiles Tauri, which takes a few minutes. Later runs are fast.
 - [ ] Settings (gear icon in the sidebar footer) → Theme switches between System, Light, and Dark.
 - [ ] Shrink the window to under 700px wide. The app shows only the list, then only the note after you open one, with a ‹ back button.
 
-**Portable mode (optional)**
-- [ ] Run `npm run tauri build`. Copy the exe from `src-tauri/target/release/` into an empty folder and create an empty file named `portable` next to it.
-- [ ] Run the exe. A `data/` folder with `notes.db`, `backups/`, and `webview/` appears next to it.
+**Portable zip, export and backups (milestone 8)**
+- [ ] Run `npm run package:portable`. It writes `release/Ferrite-Notes-0.1.0-portable-windows-x64.zip`.
+- [ ] Unzip it somewhere new and run `ferrite-notes.exe`. A separate, empty app opens, and a `data\` folder appears next to it.
+- [ ] Rename the `portable` marker to `portable.txt`. The app still opens in portable mode.
+- [ ] Settings → "Your notes" shows "Portable mode" and the `data` folder path. "Open data folder" opens Explorer there.
+- [ ] Settings → "Export all notes" writes `ferrite-notes-YYYY-MM-DD.zip` and opens Explorer with it selected. In the installed app it goes to Downloads; in portable mode it goes next to the exe.
+- [ ] Open the zip: one `.md` file per note, named after its title. Trashed notes are in `Trash\`. Each file opens in Notepad.
 
 ## Where data lives
 - Installed mode: `%APPDATA%\com.ferritenotes.notes\` (Windows) holds `notes.db`, `settings.json`, and `backups/`.
