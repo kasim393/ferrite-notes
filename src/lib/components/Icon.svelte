@@ -26,6 +26,7 @@
       'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
     ],
     close: ['M18 6 6 18', 'm6 6 12 12'],
+    sidebar: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M9 3v18'],
   } as const;
 
   export type IconName = keyof typeof paths;

@@ -13,6 +13,7 @@ import {
 const SAVE_DELAY_MS = 400;
 const LAST_NOTE_KEY = 'ferrite:lastNote';
 const PREVIEW_KEY = 'ferrite:previewNotes';
+const SIDEBAR_KEY = 'ferrite:sidebarCollapsed';
 
 export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error';
 
@@ -30,6 +31,14 @@ function recalled(): string | null {
     return localStorage.getItem(LAST_NOTE_KEY);
   } catch {
     return null;
+  }
+}
+
+function loadSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === '1';
+  } catch {
+    return false;
   }
 }
 
@@ -65,6 +74,7 @@ class Store {
   theme = $state<Theme>('system');
   syncStatus = $state<SyncStatus>({ state: 'off', lastSyncedAt: null, message: null });
   settingsOpen = $state(false);
+  sidebarCollapsed = $state(loadSidebarCollapsed());
 
   get preview(): boolean {
     return this.current != null && this.previewIds.includes(this.current.id);
@@ -327,6 +337,15 @@ class Store {
     if (!on) {
       this.docVersion++;
       queueMicrotask(() => this.focusEditor());
+    }
+  }
+
+  setSidebarCollapsed(collapsed: boolean) {
+    this.sidebarCollapsed = collapsed;
+    try {
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
+    } catch {
+      // Only a convenience, like the last-opened note.
     }
   }
 

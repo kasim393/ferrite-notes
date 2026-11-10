@@ -59,6 +59,7 @@ The first run compiles Tauri, which takes a few minutes. Later runs are fast.
 
 **Theme and layout**
 - [ ] Settings (gear icon in the sidebar footer) → Theme switches between System, Light, and Dark.
+- [ ] `Ctrl+B` or the panel icon at the left of the top bar hides and shows the sidebar, including while typing in the editor. The choice is still there after restarting the app. `Ctrl+F` with the sidebar hidden brings it back and focuses search.
 - [ ] Shrink the window to under 700px wide. The app shows only the list, then only the note after you open one, with a ‹ back button.
 
 **Portable zip, export and backups (milestone 8)**

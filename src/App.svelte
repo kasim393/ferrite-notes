@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { store } from './lib/store.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
@@ -43,6 +43,22 @@
     return document.activeElement?.closest('.cm-editor') != null;
   }
 
+  const sidebarLabel = $derived(`${store.sidebarCollapsed ? 'Show' : 'Hide'} sidebar (Ctrl+B)`);
+  const narrowScreen = window.matchMedia('(max-width: 700px)');
+
+  /** On narrow screens the list and note are separate screens, so there's nothing to collapse. */
+  function toggleSidebar() {
+    if (!narrowScreen.matches) store.setSidebarCollapsed(!store.sidebarCollapsed);
+  }
+
+  async function focusSearch() {
+    if (store.sidebarCollapsed) {
+      store.setSidebarCollapsed(false);
+      await tick();
+    }
+    store.focusSearch();
+  }
+
   function onkeydown(e: KeyboardEvent) {
     const mod = e.ctrlKey || e.metaKey;
     const key = e.key.toLowerCase();
@@ -51,7 +67,10 @@
       void store.create();
     } else if (mod && !e.shiftKey && key === 'f') {
       e.preventDefault();
-      store.focusSearch();
+      void focusSearch();
+    } else if (mod && !e.shiftKey && key === 'b') {
+      e.preventDefault();
+      toggleSidebar();
     } else if (mod && e.shiftKey && key === 'p') {
       e.preventDefault();
       void store.togglePin();
@@ -71,13 +90,22 @@
 
 <svelte:window {onkeydown} />
 
-<div class="app" class:has-note={store.current != null}>
+<div class="app" class:has-note={store.current != null} class:sidebar-collapsed={store.sidebarCollapsed}>
   <Sidebar />
 
   <main class="pane">
-    {#if store.current}
-      {@const note = store.current}
-      <div class="toolbar">
+    <div class="toolbar">
+      <button
+        class="toggle-sidebar"
+        onclick={toggleSidebar}
+        aria-label={sidebarLabel}
+        aria-expanded={!store.sidebarCollapsed}
+        title={sidebarLabel}
+      >
+        <Icon name="sidebar" />
+      </button>
+      {#if store.current}
+        {@const note = store.current}
         <button class="back" onclick={() => store.close()} aria-label="Back to list" title="Back to list">
           <Icon name="back" />
         </button>
@@ -110,13 +138,15 @@
             <Icon name="trash" />
           </button>
         {/if}
-      </div>
+      {/if}
+    </div>
 
-      {#if store.preview || note.deleted}
+    {#if store.current}
+      {#if store.preview || store.current.deleted}
         <Preview />
       {:else}
-        {#key `${note.id}:${store.docVersion}`}
-          <Editor body={note.body} />
+        {#key `${store.current.id}:${store.docVersion}`}
+          <Editor body={store.current.body} />
         {/key}
       {/if}
     {:else}
@@ -155,7 +185,7 @@
     gap: 2px;
     height: 40px;
     flex-shrink: 0;
-    padding: 0 6px 0 12px;
+    padding: 0 6px;
     border-bottom: 1px solid var(--border);
   }
   .toolbar button {
@@ -180,9 +210,9 @@
   }
   .toolbar .back {
     display: none;
-    margin-left: -6px;
   }
   .status {
+    margin-left: 6px;
     color: var(--text-muted);
     font-size: 0.8em;
   }
@@ -228,6 +258,15 @@
     cursor: pointer;
   }
 
+  @media (min-width: 701px) {
+    .app.sidebar-collapsed {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .app.sidebar-collapsed :global(.sidebar) {
+      display: none;
+    }
+  }
+
   /* Phone: list screen → note screen. */
   @media (max-width: 700px) {
     .app {
@@ -239,6 +278,9 @@
     }
     .toolbar .back {
       display: inline-flex;
+    }
+    .toolbar .toggle-sidebar {
+      display: none;
     }
   }
 </style>

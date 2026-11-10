@@ -13,7 +13,7 @@ portable zip), Linux, macOS, Android, and optionally iOS.
 | # | Milestone (PLAN.md §14) | State |
 |---|---|---|
 | 1–4 | Skeleton, core notes, tasks, search + preview | ✅ Done, committed |
-| 5 | Daily-driver week | ⏳ In progress: the user is using the app and collecting papercuts |
+| 5 | Daily-driver week | ✅ Done: used for over a week, user is happy with it |
 | 6–7 | Sync server (Worker + D1) and sync client | ✅ Done, deployed, two-device test passed |
 | 8 | Portable zip, export, backups | ✅ Windows done. Linux AppImage / macOS .app not yet (need CI) |
 | — | SQLite size trim | ✅ Done (exe 6.96 → 6.73 MB, zip ~3.2 MB) |
@@ -125,6 +125,9 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
 - **Preview mode is remembered per note** (localStorage `ferrite:previewNotes`), never
   global.
 - **The HTML sanitizer (ammonia) stays.** The user decided to keep raw-HTML rendering.
+- **Sidebar collapses** with `Ctrl+B` or the toolbar's panel icon, remembered in localStorage
+  (`ferrite:sidebarCollapsed`). It doesn't apply under 700 px, where list and note are
+  separate screens.
 - **Toolbar uses SVG icons** with tooltips and aria-labels (Lucide paths, ISC license).
   The header is a fixed 40 px.
 - **Size:** we use `opt-level = "s"`, LTO, `panic = "abort"`, and strip. No UPX (antivirus
@@ -179,9 +182,6 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
     `%SystemRoot%\System32\tar.exe`.
 
 ## What's left
-
-**Now: milestone 5, a week of daily use.** The user keeps a "Papercuts" task note in the
-app. Start the next session by asking for that list.
 
 **Next: milestone 9, Android.**
 - User prerequisites:
