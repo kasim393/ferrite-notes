@@ -37,6 +37,8 @@ export interface SyncStatus {
 
 export interface StorageInfo {
   portable: boolean;
+  /** Android/iOS: no folder to reveal; export goes through a "Save as" picker. */
+  mobile: boolean;
   dataDir: string;
   dbPath: string;
 }
@@ -60,8 +62,8 @@ export const api = {
   getSyncStatus: () => invoke<SyncStatus>('get_sync_status'),
   syncNow: () => invoke<SyncStatus>('sync_now'),
   getStorageInfo: () => invoke<StorageInfo>('get_storage_info'),
-  /** Writes a zip of .md files and returns its path. */
-  exportNotes: () => invoke<string>('export_notes'),
+  /** Writes a zip of .md files and returns where it went, or null if cancelled. */
+  exportNotes: () => invoke<string | null>('export_notes'),
 };
 
 export function errorMessage(e: unknown): string {

@@ -8,6 +8,8 @@
   import Icon from './lib/components/Icon.svelte';
   import SettingsDialog from './lib/components/SettingsDialog.svelte';
 
+  const narrowScreen = window.matchMedia('(max-width: 700px)');
+
   const statusText = { saved: 'Saved', unsaved: 'Editing…', saving: 'Saving…', error: 'Not saved' };
 
   onMount(() => {
@@ -32,19 +34,63 @@
       .catch((e) => store.fail(e));
     const onBlur = () => void store.flush();
     window.addEventListener('blur', onBlur);
+    // Phones send the app to the background without a blur or close.
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') void store.flush();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    const onNarrow = () => (narrow = narrowScreen.matches);
+    narrowScreen.addEventListener('change', onNarrow);
+    window.addEventListener('popstate', onPopState);
 
     return () => {
       unlistenClose?.();
       window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onVisibility);
+      narrowScreen.removeEventListener('change', onNarrow);
+      window.removeEventListener('popstate', onPopState);
     };
   });
+
+  /*
+   * Back gesture / back button. Android's WebView goes back in history when it
+   * can, so every screen the user can back out of (the note on a phone, then
+   * Settings) gets a history entry, and popping one closes that screen.
+   */
+  let narrow = $state(narrowScreen.matches);
+  let pushed = 0;
+  let ignoreNextPop = false;
+
+  const layers = $derived((narrow && store.current != null ? 1 : 0) + (store.settingsOpen ? 1 : 0));
+
+  $effect(() => {
+    const target = layers;
+    if (target > pushed) {
+      for (; pushed < target; pushed++) history.pushState({ ferrite: pushed + 1 }, '');
+    } else if (target < pushed) {
+      // Closed from the UI: drop the entries we no longer need.
+      ignoreNextPop = true;
+      history.go(target - pushed);
+      pushed = target;
+    }
+  });
+
+  function onPopState() {
+    if (ignoreNextPop) {
+      ignoreNextPop = false;
+      return;
+    }
+    if (pushed === 0) return;
+    pushed--;
+    if (store.settingsOpen) store.settingsOpen = false;
+    else if (store.current) void store.close();
+  }
 
   function inEditor() {
     return document.activeElement?.closest('.cm-editor') != null;
   }
 
   const sidebarLabel = $derived(`${store.sidebarCollapsed ? 'Show' : 'Hide'} sidebar (Ctrl+B)`);
-  const narrowScreen = window.matchMedia('(max-width: 700px)');
 
   /** On narrow screens the list and note are separate screens, so there's nothing to collapse. */
   function toggleSidebar() {
@@ -172,6 +218,9 @@
     grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
     height: 100vh;
     height: 100dvh;
+    /* Android draws edge to edge: keep clear of the status and gesture bars. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
   }
   .pane {
     display: flex;
@@ -238,7 +287,7 @@
   .toast {
     position: fixed;
     left: 50%;
-    bottom: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
     display: flex;
     align-items: center;
@@ -264,6 +313,17 @@
     }
     .app.sidebar-collapsed :global(.sidebar) {
       display: none;
+    }
+  }
+
+  /* Touch screens: 44px tap targets. */
+  @media (pointer: coarse) {
+    .toolbar {
+      height: 48px;
+    }
+    .toolbar button {
+      width: 44px;
+      height: 44px;
     }
   }
 

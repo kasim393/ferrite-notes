@@ -1,6 +1,9 @@
 <script lang="ts">
   import { store } from '../store.svelte';
 
+  /** Phones have no keyboard shortcut to suggest. */
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+
   function escapeHtml(s: string) {
     return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   }
@@ -23,7 +26,7 @@
 
 {#if store.list.length === 0}
   <p class="empty">
-    {#if store.query.trim()}No matches.{:else if store.filter === 'trash'}Trash is empty.{:else}No notes yet. Press Ctrl+N.{/if}
+    {#if store.query.trim()}No matches.{:else if store.filter === 'trash'}Trash is empty.{:else}No notes yet. {coarse ? 'Tap + to add one.' : 'Press Ctrl+N.'}{/if}
   </p>
 {:else}
   <ul class="list">

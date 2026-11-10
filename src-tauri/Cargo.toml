@@ -32,6 +32,14 @@ flate2 = "1"
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"
 
+# Android has no system root store reqwest can reach without JNI setup, so
+# sync there trusts the bundled Mozilla roots instead.
+[target.'cfg(target_os = "android")'.dependencies]
+webpki-root-certs = "1"
+# Export: the system "Save as" picker and writing to the content:// it returns.
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+
 [profile.release]
 codegen-units = 1
 lto = true

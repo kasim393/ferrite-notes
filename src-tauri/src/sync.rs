@@ -252,12 +252,21 @@ pub fn apply(
 // ---- Network ----
 
 pub fn http_client() -> reqwest::Client {
-    reqwest::Client::builder()
+    let builder = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(30))
-        .user_agent(concat!("FerriteNotes/", env!("CARGO_PKG_VERSION")))
-        .build()
-        .unwrap_or_default()
+        .user_agent(concat!("FerriteNotes/", env!("CARGO_PKG_VERSION")));
+
+    // The platform verifier needs JNI initialisation on Android; the bundled
+    // Mozilla roots are simpler and cover workers.dev.
+    #[cfg(target_os = "android")]
+    let builder = builder.tls_certs_only(
+        webpki_root_certs::TLS_SERVER_ROOT_CERTS
+            .iter()
+            .filter_map(|der| reqwest::Certificate::from_der(der).ok()),
+    );
+
+    builder.build().unwrap_or_default()
 }
 
 async fn post(
@@ -272,6 +281,15 @@ async fn post(
         .send()
         .await
         .map_err(|e| {
+            // The friendly message hides the cause (DNS, TLS, timeout…); log it.
+            let mut cause = e.to_string();
+            let mut source = std::error::Error::source(&e);
+            while let Some(s) = source {
+                cause.push_str(": ");
+                cause.push_str(&s.to_string());
+                source = s.source();
+            }
+            eprintln!("Sync request failed: {cause}");
             if e.is_connect() || e.is_timeout() {
                 SyncError::Offline("Can't reach the sync server".into())
             } else {

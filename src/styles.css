@@ -92,12 +92,13 @@ button:focus-visible {
   color: var(--text-muted);
 }
 
-/* Bigger tap targets on touch screens. */
+/* A little bigger on touch screens, without making task lines taller than text lines. */
 @media (pointer: coarse) {
   .cm-task-checkbox,
   .preview input[type='checkbox'] {
-    width: 22px;
-    height: 22px;
-    margin: 11px 8px 11px 0;
+    width: 18px;
+    height: 18px;
+    margin: 0 10px 0 0;
+    vertical-align: -3px;
   }
 }

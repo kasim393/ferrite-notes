@@ -45,8 +45,10 @@
     exporting = true;
     try {
       await store.flush();
-      exported = await api.exportNotes();
-      await revealItemInDir(exported);
+      const path = await api.exportNotes();
+      if (path == null) return; // Cancelled the Android "Save as" picker.
+      exported = path;
+      if (!storage?.mobile) await revealItemInDir(path);
     } catch (e) {
       store.fail(e);
     } finally {
@@ -115,12 +117,16 @@
       editor. Trashed notes go in a <code>Trash</code> folder.
     </p>
     {#if exported}
-      <p class="status" role="status">Exported to <code class="path">{exported}</code></p>
+      <p class="status" role="status">
+        {storage?.mobile ? 'Saved' : 'Exported to'} <code class="path">{exported}</code>
+      </p>
     {/if}
     <div class="actions">
-      <button type="button" class="secondary" onclick={openDataFolder} disabled={!storage}>
-        Open data folder
-      </button>
+      {#if !storage?.mobile}
+        <button type="button" class="secondary" onclick={openDataFolder} disabled={!storage}>
+          Open data folder
+        </button>
+      {/if}
       <button type="button" class="secondary" onclick={exportAll} disabled={exporting}>
         {exporting ? 'Exporting…' : 'Export all notes'}
       </button>
@@ -177,7 +183,7 @@
 <style>
   dialog {
     width: min(480px, calc(100vw - 32px));
-    max-height: calc(100dvh - 32px);
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     padding: 0;
     border: 1px solid var(--border);
     border-radius: 12px;

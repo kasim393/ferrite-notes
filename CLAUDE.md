@@ -1,7 +1,7 @@
 # Ferrite Notes – project context
 
 This is the hand-off file for a new chat. Read it first, then `PLAN.md` (the original
-plan) and `TESTING.md` (the manual test checklist). Last updated 2026-10-29.
+plan) and `TESTING.md` (the manual test checklist). Last updated 2026-11-10.
 
 Ferrite Notes is a fast, light, offline-first notes app for quick notes, task lists and bug
 lists. It has clickable checkboxes, a markdown preview, full-text search, pin/trash, and
@@ -17,12 +17,13 @@ portable zip), Linux, macOS, Android, and optionally iOS.
 | 6–7 | Sync server (Worker + D1) and sync client | ✅ Done, deployed, two-device test passed |
 | 8 | Portable zip, export, backups | ✅ Windows done. Linux AppImage / macOS .app not yet (need CI) |
 | — | SQLite size trim | ✅ Done (exe 6.96 → 6.73 MB, zip ~3.2 MB) |
-| 9 | Android (+ mobile layout) | ⏭ Next. Prerequisites listed below |
+| 9 | Android (+ mobile layout) | 🚧 In progress: TESTING.md Android checklist passed on the user's phone; release APK left |
 | — | Design / UX pass | After milestone 9, so desktop and phone are polished together |
 | 10 | Hardening: logging, perf targets, CI releases | After the design pass |
 
 Commits so far: `f8829a5` (M1–4) → `61ba0fe` (multi-check, icons) → `ee54d78` (sync) →
-`c4f2296` (M8) → `298d036` (SQLite trim). The branch is `main`, with no remote yet.
+`c4f2296` (M8) → `298d036` (SQLite trim) → `1f4fb7a` (collapsible sidebar) →
+the "Android app (M9)" commit. The branch is `main`, with no remote yet.
 
 ## Layout
 
@@ -130,6 +131,23 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
   separate screens.
 - **Toolbar uses SVG icons** with tooltips and aria-labels (Lucide paths, ISC license).
   The header is a fixed 40 px.
+- **Android:**
+  - Back gesture: Android's WebView goes back in history when it can, so `App.svelte`
+    pushes a history entry per screen you can back out of (note on a narrow screen,
+    Settings) and `popstate` closes the top one.
+  - Edge to edge: `.app` pads with `env(safe-area-inset-*)` (the WebView reports them).
+    `MainActivity.kt` pads the content view by the keyboard (IME) height, because
+    edge-to-edge apps aren't resized for it.
+  - Sync TLS uses the bundled Mozilla roots (`webpki-root-certs`, Android only), not the
+    platform verifier, which needs JNI setup there.
+  - Sync triggers on `WindowEvent::Resumed`; the page flushes saves on `visibilitychange`.
+  - Export: the system "Save as" picker (plugin-dialog) and plugin-fs to write the
+    `content://` URI, both registered **from Rust, Android only**. There are no JS
+    bindings or capabilities for them. `get_storage_info` returns `mobile` to hide
+    "Open data folder".
+  - Touch screens (`pointer: coarse`) get 44 px tap targets; the header is 48 px there.
+    Exception: task checkboxes are 18 px with no vertical margin. The user found bigger
+    boxes too large, and they also made task lines taller than text lines.
 - **Size:** we use `opt-level = "s"`, LTO, `panic = "abort"`, and strip. No UPX (antivirus
   false positives) and no `opt-level = "z"` (slower). The remaining ~6.7 MB is the floor:
   std + Tauri + SQLite + TLS. Of the icons, only `icon.ico` (9 KB) goes into the Windows
@@ -183,26 +201,41 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
 
 ## What's left
 
-**Next: milestone 9, Android.**
-- User prerequisites:
-  - In Android Studio's SDK Manager: one SDK platform (API 34/35), Build-Tools,
-    Command-line Tools, Platform-Tools, and the NDK.
-  - Set `JAVA_HOME` (Android Studio `jbr`), `ANDROID_HOME`, and `NDK_HOME`.
-  - Run `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`.
-  - Turn on USB debugging or set up an emulator.
-  - Check everything with `npx tauri info`.
-- Work:
-  - Run `tauri android init` to create `src-tauri/gen/android`.
-  - Phone layout: list and note as separate screens (a 700 px breakpoint already exists),
-    the Android back gesture going back to the list, safe areas, the keyboard not covering
-    the editor, and 44 px tap targets.
-  - Sync on app resume, since phones have no focus event.
-  - **rustls-platform-verifier needs Android-specific init.** Either do that, or use
-    webpki-roots on Android.
-  - Export: `revealItemInDir` doesn't exist on Android, so use a share sheet or a save
-    dialog (plugin-dialog).
-  - Make a release APK signing key.
-- Expected APK size: about 5–8 MB for arm64 only.
+**Now: milestone 9, Android.** The toolchain is set up (SDK, NDK 27.1, `JAVA_HOME`,
+`NDK_HOME`, Rust targets) and `src-tauri/gen/android` exists. The user's phone is a
+Motorola Edge 70 Fusion over USB.
+- Done (see "Android" under Key decisions): back gesture, safe areas, keyboard insets,
+  tap targets, sync on resume, TLS roots, export via "Save as".
+- To do:
+  - The user ran the Android section of `TESTING.md` and everything passed, sync included.
+    (An earlier test with the phone locked got a DNS error: Android blocks background
+    network access, which is expected.)
+  - The `.so` is linked for 16 KB pages (`max-page-size=16384` in `.cargo/config.toml`).
+    Without it, Android 15+ shows a compatibility popup on every launch of a debug build,
+    and Google Play rejects the app.
+  - Turn on Windows Developer Mode, or `tauri android build` fails at the symlink step.
+    Until then: build, copy `target/aarch64-linux-android/<profile>/libferrite_notes_lib.so`
+    into `gen/android/app/src/main/jniLibs/arm64-v8a/`, then run
+    `gradlew assembleArm64Debug -x rustBuildArm64Debug`.
+  - **Daily-use APK (what the user runs now, ~17 MB):** the **release** Rust library inside the
+    **debug** APK, so no signing key is needed and it updates in place.
+    1. `npx tauri android build --apk --target aarch64` builds the release `.so` (it then fails at the
+       symlink step; ignore that).
+    2. Copy `src-tauri/target/aarch64-linux-android/release/libferrite_notes_lib.so` into
+       `gen/android/app/src/main/jniLibs/arm64-v8a/`.
+    3. Delete `app/build/outputs/apk` and `app/build/intermediates/apk`. Debug packaging is
+       incremental and otherwise keeps the old 200 MB library's space: the APK grew to 214 MB.
+    4. Run `gradlew assembleArm64Debug -x rustBuildArm64Debug` from `gen/android`, then
+       `adb install -r app/build/outputs/apk/arm64/debug/app-arm64-debug.apk`.
+    - The APK is the 9 MB `.so` plus about 7 MB of unshrunk Kotlin/AndroidX code.
+    - Turning on R8 (`isMinifyEnabled`) for debug crashed at startup in Jackson's
+      `ObjectMapper.<init>`, for only 4 MB saved. Reverted. The release build has R8 on too, so
+      check the release APK for the same crash.
+  - Release APK: **not now**. The user wants to use the debug APK for a while. Later, make a
+    signing key (`keystore.properties` is already git-ignored). Switching from the debug key
+    needs an uninstall, which deletes the phone's local notes. Sync or export first.
+  - Debugging: debug builds expose WebView DevTools. Run `adb forward tcp:9333
+    localabstract:webview_devtools_remote_<pid>`, then use chrome://inspect or CDP.
 
 **Then:** a design pass (desktop and mobile together), followed by milestone 10:
 - `tracing` logs in `data/logs` with rotation.

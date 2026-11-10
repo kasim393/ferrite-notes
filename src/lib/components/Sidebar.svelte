@@ -192,4 +192,30 @@
   .sync.error .dot {
     background: var(--danger);
   }
+
+  /* Touch screens: 44px tap targets. */
+  @media (pointer: coarse) {
+    input[type='search'] {
+      min-height: 44px;
+    }
+    .new {
+      width: 44px;
+    }
+    .tabs button {
+      min-height: 40px;
+      padding: 4px 14px;
+    }
+    footer {
+      padding: 2px 8px;
+    }
+    .link {
+      min-height: 44px;
+      padding: 4px 8px;
+    }
+    .icon {
+      min-width: 44px;
+      align-items: center;
+      justify-content: center;
+    }
+  }
 </style>

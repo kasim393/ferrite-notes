@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 use std::fs::{self, File};
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Cursor, Seek, Write};
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
@@ -16,14 +16,21 @@ use crate::util::{now_ms, today_utc, utc_parts};
 
 const MAX_NAME_CHARS: usize = 80;
 
+/// `ferrite-notes-YYYY-MM-DD`, the export's name without `.zip`.
+pub fn export_stem() -> String {
+    format!("ferrite-notes-{}", today_utc())
+}
+
 /// Writes `ferrite-notes-YYYY-MM-DD.zip` into `dir` and returns its path.
 /// Live notes go at the top level, trashed ones under `Trash/`.
 pub fn export_zip(conn: &Connection, dir: &Path) -> AppResult<PathBuf> {
     fs::create_dir_all(dir)?;
-    let target = unused_path(dir, &format!("ferrite-notes-{}", today_utc()), "zip");
+    let target = unused_path(dir, &export_stem(), "zip");
     let tmp = target.with_extension("zip.part");
 
-    let result = write_zip(conn, &tmp);
+    let result = File::create(&tmp)
+        .map_err(AppError::from)
+        .and_then(|file| write_zip(conn, BufWriter::new(file)).map(|_| ()));
     if result.is_err() {
         let _ = fs::remove_file(&tmp);
     }
@@ -32,8 +39,15 @@ pub fn export_zip(conn: &Connection, dir: &Path) -> AppResult<PathBuf> {
     Ok(target)
 }
 
-fn write_zip(conn: &Connection, path: &Path) -> AppResult<()> {
-    let mut zip = ZipWriter::new(BufWriter::new(File::create(path)?));
+/// The same zip, in memory, for targets that aren't plain paths (Android's
+/// `content://` locations from the "Save as" picker).
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub fn export_bytes(conn: &Connection) -> AppResult<Vec<u8>> {
+    Ok(write_zip(conn, Cursor::new(Vec::new()))?.into_inner())
+}
+
+fn write_zip<W: Write + Seek>(conn: &Connection, out: W) -> AppResult<W> {
+    let mut zip = ZipWriter::new(out);
     let mut used = HashSet::new();
 
     let mut stmt = conn.prepare(
@@ -53,8 +67,9 @@ fn write_zip(conn: &Connection, path: &Path) -> AppResult<()> {
         zip.start_file(name, options).map_err(zip_error)?;
         zip.write_all(body.as_bytes())?;
     }
-    zip.finish().map_err(zip_error)?.flush()?;
-    Ok(())
+    let mut out = zip.finish().map_err(zip_error)?;
+    out.flush()?;
+    Ok(out)
 }
 
 fn zip_error(e: zip::result::ZipError) -> AppError {

@@ -191,6 +191,8 @@ async fn set_settings(state: State<'_, AppState>, settings: Settings) -> AppResu
 #[serde(rename_all = "camelCase")]
 struct StorageInfo {
     portable: bool,
+    /// Phones have no file manager to "reveal" a folder in.
+    mobile: bool,
     data_dir: String,
     db_path: String,
 }
@@ -199,17 +201,48 @@ struct StorageInfo {
 async fn get_storage_info(state: State<'_, AppState>) -> AppResult<StorageInfo> {
     Ok(StorageInfo {
         portable: paths::portable_dir().is_some(),
+        mobile: cfg!(mobile),
         data_dir: state.data_dir.to_string_lossy().into_owned(),
         db_path: state.data_dir.join("notes.db").to_string_lossy().into_owned(),
     })
 }
 
-/// Exports every note as `.md` files in a zip; returns the zip's path.
+/// Exports every note as `.md` files in a zip. Returns where it went, or
+/// `None` if the user cancelled the Android "Save as" picker.
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
-async fn export_notes(app: AppHandle, state: State<'_, AppState>) -> AppResult<String> {
+async fn export_notes(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
     let dir = paths::export_dir(&app, &state.data_dir);
     let path = export::export_zip(&*state.conn()?, &dir)?;
-    Ok(path.to_string_lossy().into_owned())
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+/// Android apps can't write to Downloads directly, so the user picks a place
+/// (Downloads, Drive, …) in the system picker and we write to what it returns.
+#[cfg(target_os = "android")]
+#[tauri::command]
+async fn export_notes(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
+    use std::io::Write;
+    use tauri_plugin_dialog::DialogExt;
+    use tauri_plugin_fs::{FsExt, OpenOptions};
+
+    let bytes = export::export_bytes(&*state.conn()?)?;
+    let name = format!("{}.zip", export::export_stem());
+    let Some(target) = app
+        .dialog()
+        .file()
+        .add_filter("Zip", &["zip"])
+        .set_file_name(&name)
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let mut opts = OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+    let mut file = app.fs().open(target, opts)?;
+    file.write_all(&bytes)?;
+    file.flush()?;
+    Ok(Some(name))
 }
 
 #[tauri::command]
@@ -224,6 +257,7 @@ async fn sync_now(app: AppHandle) -> AppResult<SyncStatus> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(desktop)]
     let portable = paths::portable_dir();
     // TLS for sync uses rustls with the small `ring` crypto backend.
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -259,6 +293,13 @@ pub fn run() {
         );
     }
 
+    #[cfg(target_os = "android")]
+    {
+        builder = builder
+            .plugin(tauri_plugin_dialog::init())
+            .plugin(tauri_plugin_fs::init());
+    }
+
     builder
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -268,7 +309,12 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let WindowEvent::Focused(true) = event {
+            // Phones have no focus event worth using; they resume instead.
+            #[cfg(mobile)]
+            let came_back = matches!(event, WindowEvent::Focused(true) | WindowEvent::Resumed);
+            #[cfg(desktop)]
+            let came_back = matches!(event, WindowEvent::Focused(true));
+            if came_back {
                 if let Some(state) = window.try_state::<AppState>() {
                     state.sync.trigger(Trigger::Now);
                 }

@@ -121,3 +121,49 @@ The portable copy has its own data folder, so it acts like a second device.
 - [ ] In Settings, change one character of the token and Save. The footer shows a red dot and "Sync error"; hover over it to see "The server rejected the sync token". Paste the right token back.
 - [ ] Press "Turn off sync" in Settings. The footer goes back to "Sync off" and the app keeps working offline.
 
+
+## Android (milestone 9)
+
+**Build and install on a USB-connected phone**
+
+Windows only lets programs create symlinks in Developer Mode, and `tauri android build`
+symlinks the Rust library into the Android project. Turn it on once: Settings → System →
+For developers → Developer Mode. Then:
+
+```powershell
+npx tauri android dev            # live reload on the phone (phone and PC on the same Wi-Fi)
+npx tauri android build --debug --apk --target aarch64
+adb install -r src-tauri\gen\android\app\build\outputs\apk\arm64\debug\app-arm64-debug.apk
+```
+
+A plain debug APK is about 200 MB (unoptimized Rust with debug info). For daily use,
+put the release Rust library inside the debug APK, which comes to about 17 MB. The steps
+are in CLAUDE.md under "Daily-use APK".
+
+**Layout and navigation**
+- [ ] Nothing is hidden behind the status bar at the top or the gesture bar at the bottom.
+- [ ] The list shows first. Tap a note: the note fills the screen with a ‹ button.
+- [ ] The back gesture (or ‹) returns to the list. Another back gesture leaves the app.
+- [ ] Open Settings (gear). The back gesture closes Settings, not the app.
+- [ ] Buttons (toolbar, +, Notes/Trash, gear, sync) are easy to hit with a thumb.
+- [ ] Type in a long note: the keyboard never covers the line you are typing on, and the
+      toolbar stays visible.
+- [ ] Rotate the phone: the layout still fits.
+
+**Notes and saving**
+- [ ] Create, edit, pin, trash, restore. Tick checkboxes in the editor and in preview.
+- [ ] Type something, then immediately swipe home. Reopen the app: the text is still there.
+- [ ] Swipe the app away from recents, reopen: the text is still there.
+
+**Sync**
+- [ ] Settings → paste the same sync URL and token as on the PC → Save. Status turns
+      "Synced", and the PC's notes appear.
+- [ ] Edit a note on the phone, switch to the PC: the change arrives within a few seconds.
+- [ ] Edit on the PC, then reopen the phone app from recents: it syncs on resume and the
+      change shows.
+
+**Export**
+- [ ] Settings → Export all notes opens Android's "Save as" picker with
+      `ferrite-notes-YYYY-MM-DD.zip`. Save to Downloads; it says "Saved …". The zip opens
+      in Files and contains the `.md` notes.
+- [ ] Cancelling the picker shows no error. "Open data folder" isn't shown on the phone.
