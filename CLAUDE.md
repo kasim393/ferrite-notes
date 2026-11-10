@@ -19,7 +19,7 @@ portable zip), Linux, macOS, Android, and optionally iOS.
 | — | SQLite size trim | ✅ Done (exe 6.96 → 6.73 MB, zip ~3.2 MB) |
 | 9 | Android (+ mobile layout) | 🚧 In progress: TESTING.md Android checklist passed on the user's phone; release APK left |
 | — | Design / UX pass | After milestone 9, so desktop and phone are polished together |
-| 10 | Hardening: logging, perf targets, CI releases | After the design pass |
+| 10 | Hardening: perf targets, CI releases | Perf measured and tuned (2026-11-10). Logs dropped. CI after the design pass |
 
 Commits so far: `f8829a5` (M1–4) → `61ba0fe` (multi-check, icons) → `ee54d78` (sync) →
 `c4f2296` (M8) → `298d036` (SQLite trim) → `1f4fb7a` (collapsible sidebar) →
@@ -64,6 +64,7 @@ Run these from the repo root unless noted.
 | Run the app (dev) | `npm run tauri dev` |
 | Frontend type-check / build | `npm run check` / `npm run build` |
 | Rust tests (23) | `cd src-tauri && cargo test --lib` |
+| Search benchmark (5,000 notes) | `cd src-tauri && cargo test --release --lib perf -- --ignored --nocapture` |
 | Rust lint | `cd src-tauri && cargo clippy --all-targets` |
 | Portable zip | `npm run package:portable` → `release/` |
 | Worker tests (11) / types | `cd worker && npm test` / `npm run typecheck` |
@@ -148,6 +149,37 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
   - Touch screens (`pointer: coarse`) get 44 px tap targets; the header is 48 px there.
     Exception: task checkboxes are 18 px with no vertical margin. The user found bigger
     boxes too large, and they also made task lines taller than text lines.
+- **Performance** (measured 2026-11-10 on the user's PC, release build, portable copy):
+
+  | | Empty | 5,000 notes | Target |
+  |---|---|---|---|
+  | Start → window shown | ~320 ms | ~400 ms | < 300 ms |
+  | Search | | ~5 ms | < 20 ms ✅ |
+  | Our process (private) | 5.7 MB | 8 MB | |
+  | With WebView2's 6 helpers (private) | ~100 MB | ~126 MB | < 80 MB |
+
+  - The start and RAM targets can't be met with WebView2. About 300 ms of the start is
+    WebView2 starting before our page loads (our page itself takes about 100 ms), and
+    the helpers hold about 95 MB. Our code is well within budget. Waiting on the user's OK to accept this.
+  - `--disable-gpu` (`additionalBrowserArgs` in `tauri.conf.json`, which must repeat
+    Tauri's default `--disable-features=…`) dropped memory from 155 to 102 MB and the
+    start from 355 to 323 ms. The GPU process alone was 68 MB. Drawing on the CPU is
+    fine for a text app. `--in-process-gpu --renderer-process-limit=1` saved only 8 MB
+    more, and is less stable, so it's not used.
+  - The note list renders in pages of 150 as you scroll, and `store.list` is
+    `$state.raw`. With 5,000 notes, rendering every row cost 800 ms and 360 MB.
+  - Android (debug APK, release `.so`): tap to list in about 1.1 s. That's 370 ms
+    process, 395 ms WebView start, and 375 ms page. PSS is about 170 MB plus the WebView
+    renderer. Phones have no target.
+  - How to measure: the UI calls `startup_done` after the first paint, and Rust prints
+    `ferrite-startup: shown_unix_ms=… since_run_ms=…` to stderr (logcat on Android).
+    Launch a portable copy with stderr redirected, wait for that line, then add up
+    `PrivatePageCount` over the process tree (Win32_Process). For a breakdown, set
+    `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223` and read
+    `performance` timings over CDP. Seed a 5,000-note database with
+    `FERRITE_SEED_DB=<path>` plus the benchmark command.
+  - **No log files.** The user decided they aren't worth it, because nothing gets sent
+    back to us. Only the startup marker and `eprintln!` remain.
 - **Size:** we use `opt-level = "s"`, LTO, `panic = "abort"`, and strip. No UPX (antivirus
   false positives) and no `opt-level = "z"` (slower). The remaining ~6.7 MB is the floor:
   std + Tauri + SQLite + TLS. Of the icons, only `icon.ico` (9 KB) goes into the Windows
@@ -237,10 +269,8 @@ Motorola Edge 70 Fusion over USB.
   - Debugging: debug builds expose WebView DevTools. Run `adb forward tcp:9333
     localabstract:webview_devtools_remote_<pid>`, then use chrome://inspect or CDP.
 
-**Then:** a design pass (desktop and mobile together), followed by milestone 10:
-- `tracing` logs in `data/logs` with rotation.
-- Measure the plan's targets: cold start under 300 ms, idle RAM under 80 MB, search of
-  5,000 notes under 20 ms.
+**Then:** a design pass and new themes (desktop and mobile together). After that, the
+rest of milestone 10:
 - GitHub Actions to build the Windows zip/installer, Linux AppImage, and macOS .app on
   release tags.
 - iOS is optional (it needs a paid Apple account).

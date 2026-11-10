@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { store } from './lib/store.svelte';
+  import { api } from './lib/api';
   import Sidebar from './lib/components/Sidebar.svelte';
   import Editor from './lib/components/Editor.svelte';
   import Preview from './lib/components/Preview.svelte';
@@ -22,6 +23,8 @@
       } finally {
         // Window starts hidden; show it once there is something to show (no white flash).
         await win.show().catch(() => {});
+        // Startup-time marker for measurements; after the next paint, so it's what you see.
+        requestAnimationFrame(() => setTimeout(() => void api.startupDone().catch(() => {})));
       }
     })();
 

@@ -5,6 +5,8 @@ mod export;
 mod markdown;
 mod notes;
 mod paths;
+#[cfg(test)]
+mod perf;
 mod settings;
 mod sync;
 mod util;
@@ -21,6 +23,9 @@ use settings::Settings;
 use sync::{Sync, SyncConfig, SyncStatus, Trigger};
 
 const TRASH_MAX_AGE_MS: i64 = 30 * util::DAY_MS;
+
+/// When `run()` began, for the startup-time marker.
+static STARTED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
 
 pub struct AppState {
     db: Mutex<Connection>,
@@ -245,6 +250,19 @@ async fn export_notes(app: AppHandle, state: State<'_, AppState>) -> AppResult<O
     Ok(Some(name))
 }
 
+/// Called once by the UI right after the window is shown with the note list.
+/// Prints a marker that measurement scripts read from stderr / logcat:
+/// `ferrite-startup: shown_unix_ms=<ms> since_run_ms=<ms>`.
+#[tauri::command]
+async fn startup_done() -> AppResult<()> {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let since_run = STARTED.get().map_or(0, |t| t.elapsed().as_millis());
+        eprintln!("ferrite-startup: shown_unix_ms={} since_run_ms={since_run}", util::now_ms());
+    });
+    Ok(())
+}
+
 #[tauri::command]
 async fn get_sync_status(state: State<'_, AppState>) -> AppResult<SyncStatus> {
     Ok(state.sync.status())
@@ -257,6 +275,7 @@ async fn sync_now(app: AppHandle) -> AppResult<SyncStatus> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    STARTED.get_or_init(std::time::Instant::now);
     #[cfg(desktop)]
     let portable = paths::portable_dir();
     // TLS for sync uses rustls with the small `ring` crypto backend.
@@ -339,6 +358,7 @@ pub fn run() {
             sync_now,
             get_storage_info,
             export_notes,
+            startup_done,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Ferrite Notes");

@@ -63,7 +63,8 @@ function savePreviewIds(ids: string[]) {
 class Store {
   filter = $state<ListFilter>('notes');
   query = $state('');
-  list = $state<NoteSummary[]>([]);
+  /** Replaced, never mutated: raw state skips a deep proxy over thousands of notes. */
+  list = $state.raw<NoteSummary[]>([]);
   current = $state<Note | null>(null);
   /** Bumped when the body changes from outside the editor (open, preview toggle). */
   docVersion = $state(0);

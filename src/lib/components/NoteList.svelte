@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { store } from '../store.svelte';
 
   /** Phones have no keyboard shortcut to suggest. */
@@ -16,6 +17,37 @@
   const dayFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
   const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 
+  /*
+   * Render the list a page at a time: 5,000 rows of DOM cost ~400 ms at startup
+   * and ~200 MB in WebView2. More rows are added as the end scrolls into view.
+   */
+  const PAGE = 150;
+  let shown = $state(PAGE);
+  let sentinel = $state<HTMLElement>();
+  const visible = $derived(store.list.slice(0, shown));
+
+  $effect.pre(() => {
+    void store.list; // a new list (filter, search, refresh) starts at one page again…
+    shown = Math.max(PAGE, untrack(() => activeIndex()) + 1); // …but keeps the open note in view
+  });
+
+  function activeIndex() {
+    const id = store.current?.id;
+    return id ? store.list.findIndex((n) => n.id === id) : -1;
+  }
+
+  $effect(() => {
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) shown += PAGE;
+      },
+      { rootMargin: '400px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  });
+
   function when(ms: number) {
     const date = new Date(ms);
     return date.toDateString() === new Date().toDateString()
@@ -30,7 +62,7 @@
   </p>
 {:else}
   <ul class="list">
-    {#each store.list as note (note.id)}
+    {#each visible as note (note.id)}
       <li>
         <button
           class="item"
@@ -48,10 +80,16 @@
         </button>
       </li>
     {/each}
+    {#if shown < store.list.length}
+      <li bind:this={sentinel} class="more" aria-hidden="true"></li>
+    {/if}
   </ul>
 {/if}
 
 <style>
+  .more {
+    height: 1px;
+  }
   .list {
     list-style: none;
     margin: 0;

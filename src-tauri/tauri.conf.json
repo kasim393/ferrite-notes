@@ -18,7 +18,8 @@
         "height": 680,
         "minWidth": 360,
         "minHeight": 400,
-        "visible": false
+        "visible": false,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-gpu"
       }
     ],
     "security": {

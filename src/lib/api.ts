@@ -64,6 +64,8 @@ export const api = {
   getStorageInfo: () => invoke<StorageInfo>('get_storage_info'),
   /** Writes a zip of .md files and returns where it went, or null if cancelled. */
   exportNotes: () => invoke<string | null>('export_notes'),
+  /** Marks the first visible frame (prints a startup-time line to stderr/logcat). */
+  startupDone: () => invoke<void>('startup_done'),
 };
 
 export function errorMessage(e: unknown): string {
