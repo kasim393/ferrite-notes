@@ -306,8 +306,9 @@ pub fn run() {
         }));
         builder = builder.plugin(
             tauri_plugin_window_state::Builder::new()
-                // The UI shows the window itself after first render.
-                .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
+                // The UI shows the window itself after first render. The frame is
+                // always off (we draw our own title bar), so never restore an old one.
+                .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE & !StateFlags::DECORATIONS)
                 .build(),
         );
     }
@@ -335,7 +336,7 @@ pub fn run() {
             let came_back = matches!(event, WindowEvent::Focused(true));
             if came_back {
                 if let Some(state) = window.try_state::<AppState>() {
-                    state.sync.trigger(Trigger::Now);
+                    state.sync.trigger(Trigger::Focused);
                 }
             }
         })

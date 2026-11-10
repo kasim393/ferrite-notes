@@ -95,7 +95,7 @@
     min-width: 0;
     padding: 7px 10px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: var(--bg);
     color: inherit;
     font: inherit;
@@ -111,7 +111,7 @@
     flex-shrink: 0;
     width: 34px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: var(--accent);
     color: var(--on-accent);
     font-size: 20px;
@@ -130,7 +130,7 @@
     font: inherit;
     font-size: 0.9em;
     padding: 4px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
   .tabs button.on {

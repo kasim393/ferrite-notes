@@ -1,6 +1,6 @@
 <script lang="ts">
   import { revealItemInDir } from '@tauri-apps/plugin-opener';
-  import { api, type StorageInfo, type Theme } from '../api';
+  import { api, LOOKS, type Look, type StorageInfo, type Theme } from '../api';
   import { store } from '../store.svelte';
   import Icon from './Icon.svelte';
 
@@ -66,6 +66,15 @@
     saved = await store.saveSync('', '');
   }
 
+  /** Fixed colours for each tile, so every tile shows its own theme: page, sidebar, accent, text. */
+  const swatch: Record<Look, [string, string, string, string]> = {
+    macos: ['#ffffff', '#f2f2f4', '#0a64ff', '#1d1d1f'],
+    gaming: ['#110d1c', '#171128', '#ff2e88', '#ede8ff'],
+    terminal: ['#04110d', '#04110d', '#8fffd6', '#8fffd6'],
+    retro: ['#1f2a17', '#c9a23a', '#e2742f', '#a8e06b'],
+    eink: ['#f0efeb', '#e7e6e1', '#1a1a1a', '#1a1a1a'],
+  };
+
   const themes: { value: Theme; label: string }[] = [
     { value: 'system', label: 'System' },
     { value: 'light', label: 'Light' },
@@ -92,7 +101,30 @@
 
   <section>
     <h3>Theme</h3>
-    <div class="segmented" role="radiogroup" aria-label="Theme">
+    <div class="looks" role="radiogroup" aria-label="Theme">
+      {#each LOOKS as l (l.value)}
+        {@const [bg, side, accent, text] = swatch[l.value]}
+        <button
+          role="radio"
+          class="look"
+          class:on={store.look === l.value}
+          aria-checked={store.look === l.value}
+          onclick={() => store.setLook(l.value)}
+        >
+          <span class="tile" style:background={bg} aria-hidden="true">
+            <span class="tile-side" style:background={side}></span>
+            <span class="tile-lines">
+              <span style:background={text}></span>
+              <span style:background={text} style:opacity="0.45"></span>
+              <span style:background={accent}></span>
+            </span>
+          </span>
+          {l.label}
+        </button>
+      {/each}
+    </div>
+    {#if store.lookHasModes}
+    <div class="segmented" role="radiogroup" aria-label="Light or dark">
       {#each themes as t (t.value)}
         <button
           role="radio"
@@ -102,6 +134,9 @@
         >
       {/each}
     </div>
+    {:else}
+      <p class="hint">This theme is always dark.</p>
+    {/if}
   </section>
 
   <section>
@@ -181,12 +216,66 @@
 </dialog>
 
 <style>
+  .looks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .look {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px 8px;
+    border: 1.5px solid transparent;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+  }
+  .look:hover {
+    background: var(--surface);
+  }
+  .look.on {
+    border-color: var(--accent);
+  }
+  .tile {
+    display: flex;
+    width: 100%;
+    height: 40px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .tile-side {
+    width: 34%;
+  }
+  .tile-lines {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    padding: 7px 6px;
+  }
+  .tile-lines span {
+    height: 4px;
+    border-radius: 2px;
+  }
+  .tile-lines span:nth-child(2) {
+    width: 70%;
+  }
+  .tile-lines span:nth-child(3) {
+    width: 40%;
+  }
   dialog {
     width: min(480px, calc(100vw - 32px));
     max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     padding: 0;
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     background: var(--bg);
     color: var(--text);
     box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
@@ -249,7 +338,7 @@
     min-width: 0;
     padding: 7px 10px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: var(--surface);
     color: inherit;
     font: inherit;
@@ -266,7 +355,7 @@
   button {
     font: inherit;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: var(--radius);
   }
   .icon {
     display: inline-flex;
@@ -315,13 +404,13 @@
   .segmented {
     display: inline-flex;
     padding: 2px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: var(--surface-2);
   }
   .segmented button {
     padding: 4px 14px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: none;
     color: var(--text-muted);
   }

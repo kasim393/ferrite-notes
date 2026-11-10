@@ -21,6 +21,8 @@ use crate::AppState;
 pub const PUSH_BATCH: usize = 100;
 const EDIT_DELAY: Duration = Duration::from_secs(3);
 const PERIODIC: Duration = Duration::from_secs(5 * 60);
+/// Focus or resume syncs only if the last sync is at least this old.
+const FOCUS_MIN: Duration = Duration::from_secs(30);
 const BACKOFF_START: Duration = Duration::from_secs(5);
 const BACKOFF_MAX: Duration = Duration::from_secs(5 * 60);
 /// Safety net against a misbehaving server: rounds and pages per sync.
@@ -366,8 +368,12 @@ async fn run(state: &AppState, cfg: &SyncConfig) -> Result<Vec<String>, SyncErro
 
 #[derive(Debug)]
 pub enum Trigger {
-    /// Sync as soon as possible (start, window focus, settings changed, "Sync now").
+    /// Sync as soon as possible (start, settings changed, "Sync now").
     Now,
+    /// The window got focus or the phone app resumed. Only syncs if the last sync is
+    /// older than `FOCUS_MIN`: clicking or dragging the title bar refocuses the window,
+    /// and that shouldn't hit the server every time.
+    Focused,
     /// A note changed; sync once edits pause for a few seconds.
     Edited,
 }
@@ -456,6 +462,7 @@ pub async fn sync_once(app: &AppHandle) -> SyncStatus {
 /// failures retry with exponential backoff (5 s → 10 s → … → 5 min).
 pub async fn run_loop(app: AppHandle, mut rx: mpsc::UnboundedReceiver<Trigger>) {
     let mut due: Option<Instant> = Some(Instant::now());
+    let mut last_sync: Option<Instant> = None;
     let mut retry_at: Option<Instant> = None;
     let mut backoff = BACKOFF_START;
 
@@ -465,6 +472,11 @@ pub async fn run_loop(app: AppHandle, mut rx: mpsc::UnboundedReceiver<Trigger>) 
             trigger = rx.recv() => match trigger {
                 None => return,
                 Some(Trigger::Now) => due = Some(Instant::now()),
+                Some(Trigger::Focused) => {
+                    if last_sync.is_none_or(|t| t.elapsed() >= FOCUS_MIN) && retry_at.is_none() {
+                        due = Some(Instant::now());
+                    }
+                }
                 Some(Trigger::Edited) => {
                     let at = Instant::now() + EDIT_DELAY;
                     // Debounce: each edit pushes the sync back, but never before a pending retry.
@@ -473,6 +485,7 @@ pub async fn run_loop(app: AppHandle, mut rx: mpsc::UnboundedReceiver<Trigger>) 
             },
             _ = sleep_until(wake) => {
                 let status = sync_once(&app).await;
+                last_sync = Some(Instant::now());
                 if matches!(status.state, SyncState::Offline | SyncState::Error) {
                     let at = Instant::now() + backoff;
                     retry_at = Some(at);

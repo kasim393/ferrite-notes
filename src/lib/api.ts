@@ -1,7 +1,18 @@
 import { invoke } from '@tauri-apps/api/core';
 
 export type ListFilter = 'notes' | 'trash';
+/** Light/dark mode. */
 export type Theme = 'system' | 'light' | 'dark';
+/** The visual theme. Gaming and Terminal are dark-only. */
+export type Look = 'macos' | 'gaming' | 'terminal' | 'retro' | 'eink';
+
+export const LOOKS: { value: Look; label: string; darkOnly: boolean }[] = [
+  { value: 'macos', label: 'macOS', darkOnly: false },
+  { value: 'gaming', label: 'Gaming', darkOnly: true },
+  { value: 'terminal', label: 'Terminal', darkOnly: true },
+  { value: 'retro', label: 'Retro', darkOnly: true },
+  { value: 'eink', label: 'E-ink', darkOnly: false },
+];
 
 export interface Note {
   id: string;
@@ -16,6 +27,8 @@ export interface NoteSummary {
   title: string;
   /** Plain text; search matches are wrapped in \u0002 … \u0003. */
   snippet: string;
+  tasksDone: number;
+  tasksTotal: number;
   pinned: boolean;
   deleted: boolean;
   updatedAt: number;
@@ -23,6 +36,7 @@ export interface NoteSummary {
 
 export interface Settings {
   theme: Theme;
+  look: Look;
   syncUrl: string | null;
   syncToken: string | null;
 }

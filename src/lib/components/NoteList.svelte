@@ -74,8 +74,15 @@
             {#if note.pinned && !note.deleted}<span class="pin" aria-label="Pinned">●</span>{/if}
             <span class="time">{when(note.updatedAt)}</span>
           </span>
-          {#if note.snippet}
-            <span class="snippet">{@html snippetHtml(note.snippet)}</span>
+          {#if note.snippet || note.tasksTotal}
+            <span class="snippet">
+              {#if note.tasksTotal}<span
+                  class="tasks"
+                  class:all-done={note.tasksDone === note.tasksTotal}
+                  aria-label="{note.tasksDone} of {note.tasksTotal} tasks done"
+                  >{note.tasksDone} of {note.tasksTotal}</span
+                >{/if}{@html snippetHtml(note.snippet)}
+            </span>
           {/if}
         </button>
       </li>
@@ -103,7 +110,7 @@
     text-align: left;
     padding: 8px 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: none;
     color: inherit;
     font: inherit;
@@ -112,8 +119,36 @@
   .item:hover {
     background: var(--surface-2);
   }
+  .item {
+    border: 1px solid transparent;
+  }
   .item.active {
     background: var(--selected);
+    border-color: var(--selected-border);
+    color: var(--selected-text);
+  }
+  .item.active .time,
+  .item.active .snippet,
+  .item.active .pin {
+    color: var(--selected-muted);
+  }
+  .tasks {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 0 6px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+  .tasks.all-done {
+    background: none;
+    color: inherit;
+    padding: 0;
+  }
+  .item.active .tasks {
+    background: color-mix(in srgb, currentColor 18%, transparent);
+    color: inherit;
   }
   .row {
     display: flex;

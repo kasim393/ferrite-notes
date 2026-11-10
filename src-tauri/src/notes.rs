@@ -22,6 +22,9 @@ pub struct NoteSummary {
     pub title: String,
     /// Plain text; for search results matches are wrapped in \u{2} … \u{3}.
     pub snippet: String,
+    /// Checked and total `- [ ]` tasks in the whole note (0 / 0 for plain notes).
+    pub tasks_done: u32,
+    pub tasks_total: u32,
     pub pinned: bool,
     pub deleted: bool,
     pub updated_at: i64,
@@ -36,8 +39,8 @@ pub enum ListFilter {
 
 const TITLE_LEN: usize = 100;
 const SNIPPET_LEN: usize = 80;
-/// Enough leading text to build a title and snippet without loading whole notes.
-const HEAD_CHARS: i64 = 400;
+/// Enough leading text to build a title and snippet.
+const HEAD_CHARS: usize = 400;
 
 fn note_from_row(row: &Row) -> rusqlite::Result<Note> {
     Ok(Note {
@@ -49,10 +52,17 @@ fn note_from_row(row: &Row) -> rusqlite::Result<Note> {
     })
 }
 
-/// Columns: id, head, pinned, deleted, updated_at[, fts snippet].
+/// Columns: id, body, pinned, deleted, updated_at[, fts snippet].
+/// The whole body is read so task counts cover every line; for 5,000 notes
+/// that's a few MB and a few ms (see perf.rs).
 fn summary_from_row(row: &Row, fts_snippet: bool) -> rusqlite::Result<NoteSummary> {
-    let head: String = row.get(1)?;
-    let (title, mut snippet) = title_and_snippet(&head);
+    let body: String = row.get(1)?;
+    let (tasks_done, tasks_total) = task_counts(&body);
+    let head = match body.char_indices().nth(HEAD_CHARS) {
+        Some((i, _)) => &body[..i],
+        None => &body,
+    };
+    let (title, mut snippet) = title_and_snippet(head);
     if fts_snippet {
         snippet = row
             .get::<_, String>(5)?
@@ -64,21 +74,68 @@ fn summary_from_row(row: &Row, fts_snippet: bool) -> rusqlite::Result<NoteSummar
         id: row.get(0)?,
         title,
         snippet,
+        tasks_done,
+        tasks_total,
         pinned: row.get(2)?,
         deleted: row.get(3)?,
         updated_at: row.get(4)?,
     })
 }
 
-/// First non-empty line is the title (leading `#` stripped); the rest is the snippet.
+/// First non-empty line is the title (leading `#` stripped); the rest is the snippet,
+/// as readable text: markdown markers are dropped, list items are joined with ", ",
+/// and finished tasks are left out (the list shows "2 of 5" instead).
 pub fn title_and_snippet(body: &str) -> (String, String) {
     let mut lines = body.lines().map(str::trim).filter(|l| !l.is_empty());
     let title = lines
         .next()
         .map(|l| l.trim_start_matches('#').trim())
         .unwrap_or_default();
-    let rest = lines.collect::<Vec<_>>().join(" ");
+
+    let mut rest = String::new();
+    let mut prev_item = false;
+    for line in lines {
+        let (text, item) = match task_marker(line) {
+            Some((_, true)) => continue,
+            Some((at, false)) => (line[at + 2..].trim(), true),
+            None => match strip_bullet(line) {
+                Some(text) => (text, true),
+                None => (line.trim_start_matches(['#', '>']).trim(), false),
+            },
+        };
+        let text = text.replace("**", "").replace('`', "");
+        if text.is_empty() {
+            continue;
+        }
+        if !rest.is_empty() {
+            rest.push_str(if prev_item && item { ", " } else { " " });
+        }
+        rest.push_str(&text);
+        prev_item = item;
+        if rest.chars().count() > SNIPPET_LEN {
+            break;
+        }
+    }
     (truncate(title, TITLE_LEN), truncate(&rest, SNIPPET_LEN))
+}
+
+/// `- item`, `* item`, `+ item`, `1. item` → `item`.
+fn strip_bullet(line: &str) -> Option<&str> {
+    if let Some(rest) = line.strip_prefix(['-', '*', '+']) {
+        return rest.strip_prefix(' ').map(str::trim);
+    }
+    let digits = line.bytes().take_while(u8::is_ascii_digit).count();
+    if digits == 0 {
+        return None;
+    }
+    line[digits..].strip_prefix(['.', ')'])?.strip_prefix(' ').map(str::trim)
+}
+
+/// (checked, total) task lines.
+pub fn task_counts(body: &str) -> (u32, u32) {
+    body.lines().filter_map(task_marker).fold((0, 0), |(done, total), (_, checked)| {
+        (done + u32::from(checked), total + 1)
+    })
 }
 
 fn truncate(s: &str, max: usize) -> String {
@@ -91,11 +148,11 @@ fn truncate(s: &str, max: usize) -> String {
 pub fn list(conn: &Connection, filter: ListFilter) -> AppResult<Vec<NoteSummary>> {
     let deleted = matches!(filter, ListFilter::Trash);
     let mut stmt = conn.prepare_cached(
-        "SELECT id, substr(body, 1, ?2), pinned, deleted, updated_at
+        "SELECT id, body, pinned, deleted, updated_at
          FROM notes WHERE deleted = ?1
          ORDER BY pinned DESC, updated_at DESC",
     )?;
-    let rows = stmt.query_map(params![deleted, HEAD_CHARS], |r| summary_from_row(r, false))?;
+    let rows = stmt.query_map(params![deleted], |r| summary_from_row(r, false))?;
     Ok(rows.collect::<Result<_, _>>()?)
 }
 
@@ -245,13 +302,13 @@ pub fn search(conn: &Connection, query: &str) -> AppResult<Vec<NoteSummary>> {
         return list(conn, ListFilter::Notes);
     }
     let mut stmt = conn.prepare_cached(
-        "SELECT n.id, substr(n.body, 1, ?2), n.pinned, n.deleted, n.updated_at,
+        "SELECT n.id, n.body, n.pinned, n.deleted, n.updated_at,
                 snippet(notes_fts, 0, char(2), char(3), '…', 12)
          FROM notes_fts JOIN notes n ON n.rid = notes_fts.rowid
          WHERE notes_fts MATCH ?1 AND n.deleted = 0
          ORDER BY rank LIMIT 200",
     )?;
-    let rows = stmt.query_map(params![fts, HEAD_CHARS], |r| summary_from_row(r, true))?;
+    let rows = stmt.query_map(params![fts], |r| summary_from_row(r, true))?;
     Ok(rows.collect::<Result<_, _>>()?)
 }
 
@@ -353,6 +410,21 @@ mod tests {
             ("Hello".into(), "world more".into())
         );
         assert_eq!(title_and_snippet(""), (String::new(), String::new()));
+        assert_eq!(
+            title_and_snippet("Groceries
+- [ ] Milk
+- [x] Eggs
+- [ ] **Pasta**
+
+> Ask Sam
+* olive oil").1,
+            "Milk, Pasta Ask Sam olive oil"
+        );
+        assert_eq!(task_counts("a
+- [x] b
+  - [ ] c
+1. [X] d
+- [] not a task"), (2, 3));
         let long = "x".repeat(150);
         assert_eq!(title_and_snippet(&long).0.chars().count(), TITLE_LEN + 1);
     }

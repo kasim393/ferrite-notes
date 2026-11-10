@@ -18,7 +18,7 @@ portable zip), Linux, macOS, Android, and optionally iOS.
 | 8 | Portable zip, export, backups | ✅ Windows done. Linux AppImage / macOS .app not yet (need CI) |
 | — | SQLite size trim | ✅ Done (exe 6.96 → 6.73 MB, zip ~3.2 MB) |
 | 9 | Android (+ mobile layout) | 🚧 In progress: TESTING.md Android checklist passed on the user's phone; release APK left |
-| — | Design / UX pass | After milestone 9, so desktop and phone are polished together |
+| — | Design / UX pass | 🚧 Themes built (2026-11-10): macOS (default), Gaming, Terminal (CRT), Retro, E-ink. Own title bar. User testing next |
 | 10 | Hardening: perf targets, CI releases | Perf measured and tuned (2026-11-10). Logs dropped. CI after the design pass |
 
 Commits so far: `f8829a5` (M1–4) → `61ba0fe` (multi-check, icons) → `ee54d78` (sync) →
@@ -102,8 +102,9 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
     URL both re-push everything.
   - The server batch uses an optimistic lock: a CHECK-constraint trick on the `counter`
     table, retried up to 5 times.
-- **Sync triggers:** app start, window focus, 3 s after the last edit, every 5 min, and
-  "Sync now". Backoff on failure is 5 s → 5 min. Rust emits `sync-status` and
+- **Sync triggers:** app start, window focus or phone resume (only if the last sync is
+  30 s or older, `Trigger::Focused`: clicking the custom title bar refocuses the window),
+  3 s after the last edit, every 5 min, and "Sync now". Backoff on failure is 5 s → 5 min. Rust emits `sync-status` and
   `notes-changed` events; there is no JS polling.
 - **TLS:** reqwest + rustls with the `ring` provider (`rustls-no-provider` + installing the
   provider in `run()`). This avoids aws-lc-rs and OpenSSL.
@@ -127,9 +128,72 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
 - **Preview mode is remembered per note** (localStorage `ferrite:previewNotes`), never
   global.
 - **The HTML sanitizer (ammonia) stays.** The user decided to keep raw-HTML rendering.
+- **Web images in the preview:** the CSP allows `img-src … https:` (not `http:`), and
+  images are capped at the note's width. Opening a note with a web image downloads it,
+  so that site sees the user's IP address, the same as a browser would. Some sites
+  (Wikimedia) refuse images embedded in other apps, which isn't a bug.
 - **Sidebar collapses** with `Ctrl+B` or the toolbar's panel icon, remembered in localStorage
   (`ferrite:sidebarCollapsed`). It doesn't apply under 700 px, where list and note are
   separate screens.
+- **Themes ("looks")**, chosen by the user: macOS (the default), Gaming, Terminal, Retro
+  and E-ink. Settings stores `look` (the theme) and `theme` (the mode: system, light or
+  dark). Unknown values fall back to macOS and system.
+  - `store.applyAppearance()` puts `data-look` and the resolved `data-mode` on `<html>`,
+    and follows the system's light/dark setting. Gaming, Terminal and Retro are dark-only,
+    so Settings hides the mode switch for them.
+  - `themes.css` holds every look's variables, plus thin rounded scrollbars
+    (`::-webkit-scrollbar`) and checkboxes drawn by the theme (`appearance: none`; the
+    tick is a data-URI SVG in `--check-icon`).
+  - Small touches per look: Gaming has a cyan bar on the open note and a cut-corner +
+    button; E-ink outlines the selected note.
+  - **Terminal is a vintage CRT.** A dark bezel around a screen with rounded corners,
+    scanlines and an edge fade (`.app::after`, `pointer-events: none`), a phosphor glow
+    (`text-shadow`), the selected note in inverse video, boxed buttons, a blinking block
+    cursor, and `# ` before the title. The screen is square: rounded corners didn't read as
+    a CRT, and a real bend would blur the text.
+  - **Retro is worn cassette-futurism hardware**, made to look realistic:
+    - Textures: scratched, rusty grey paint for the casing (`.window`), chipped mustard
+      paint for the panel (the sidebar, which re-scopes `--text`, `--surface` and so on),
+      and aged brass for the bezel around the LCD (`.pane`).
+    - The textures are seamless WebP tiles in `src/assets/retro/` (about 140 KB). They're
+      generated procedurally by `scripts/gen-retro-textures.py` (Pillow + NumPy, no
+      photos, no licence), so the build doesn't need Python.
+    - Screws are an SVG data URI in `--screw`. Positions in the `background` shorthand
+      must be four-value (`left 8px bottom 8px`): `8px bottom 8px` is invalid, and one
+      invalid value drops the whole background.
+    - The panel is worn most at the edges; a radial wash keeps the text in the middle
+      readable.
+    - Keys look like the hardware's: a domed face with grime at the edges, set in a black
+      well (a `box-shadow` ring). The window keys are printed MIN / MAX / OFF, and OFF
+      (close) is orange. Settings is a screwed-on mustard panel with LCD fields and the
+      same keys.
+    - The LCD is rounded inside the brass bezel: an outer radius of 20 px with a 12 px
+      border gives an 8 px inner radius. The bezel screws sit on the rails next to each
+      corner, clear of the curve.
+    - A TX/RX lamp in the title bar is green when idle, blinks amber while saving or
+      syncing, and goes red on an error.
+  - The block cursor needs CodeMirror's `drawSelection()`, since the native caret can't be
+    a block. The selection colour is `--selection`.
+  - **Glass was removed.** The user found it ugly: washed-out text, see-through
+    Settings, and it depended on what was behind the window. The window is no longer
+    transparent.
+- **Own title bar** (`decorations: false`, `Titlebar.svelte`, desktop only). It drags the
+  window (`data-tauri-drag-region`, double-click maximizes). macOS gets the three dots on
+  the left; the other looks get Windows-style buttons on the right. Each look styles it
+  with `--titlebar-*`. The cost, which the user accepted: no Windows 11 Snap Layouts
+  menu on the maximize button, and no Alt+Space window menu.
+- **No typing sound.** It was built and then removed at the user's request (2026-11-11),
+  together with the idea of real Mechvibes-style recordings.
+  - Fonts are system fonts only, nothing bundled: Segoe UI (macOS), Bahnschrift
+    (Gaming), Cascadia Mono / Consolas (Terminal), Georgia / Noto Serif (E-ink).
+  - The user rejected warm cream with terracotta (the old look), four calmer themes
+    (Graphite, Field, Ferrofluid, Classic), Glass, and the Sci-fi and Blueprint ideas.
+  - Opening `localhost:1420` in a normal browser fails ("reading 'invoke'"). That's
+    expected: only the app window can reach Rust.
+- **List and title:** list previews drop markdown markers and finished tasks, and join
+  list items with ", ". Notes with tasks show a done/total badge (`tasks_done`,
+  `tasks_total` from `notes::task_counts`, counted over the whole body). The editor's
+  first line gets `cm-title-line`, so it looks like a title.
 - **Toolbar uses SVG icons** with tooltips and aria-labels (Lucide paths, ISC license).
   The header is a fixed 40 px.
 - **Android:**
@@ -160,7 +224,7 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
 
   - The start and RAM targets can't be met with WebView2. About 300 ms of the start is
     WebView2 starting before our page loads (our page itself takes about 100 ms), and
-    the helpers hold about 95 MB. Our code is well within budget. Waiting on the user's OK to accept this.
+    the helpers hold about 95 MB. Our code is well within budget. The user accepted this (2026-11-10).
   - `--disable-gpu` (`additionalBrowserArgs` in `tauri.conf.json`, which must repeat
     Tauri's default `--disable-features=…`) dropped memory from 155 to 102 MB and the
     start from 355 to 323 ms. The GPU process alone was 68 MB. Drawing on the CPU is
@@ -180,6 +244,10 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
     `FERRITE_SEED_DB=<path>` plus the benchmark command.
   - **No log files.** The user decided they aren't worth it, because nothing gets sent
     back to us. Only the startup marker and `eprintln!` remain.
+- **App icon:** iron's periodic-table tile: a big silver "Fe" on brushed dark iron, with
+  26 and 55.845. The user chose it. `scripts/gen-icon.py` draws the 1024 px master
+  `src-tauri/icons/app-icon.png`, and `npx tauri icon src-tauri/icons/app-icon.png`
+  makes every size, including the Android mipmaps.
 - **Size:** we use `opt-level = "s"`, LTO, `panic = "abort"`, and strip. No UPX (antivirus
   false positives) and no `opt-level = "z"` (slower). The remaining ~6.7 MB is the floor:
   std + Tauri + SQLite + TLS. Of the icons, only `icon.ico` (9 KB) goes into the Windows
@@ -198,8 +266,8 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
   `db.rs`.
 
 **Frontend**
-- Svelte 5 runes and plain CSS variables (`styles.css`, with light/dark plus a
-  `data-theme` override). No UI library.
+- Svelte 5 runes and plain CSS variables. No UI library. Colours, radii and fonts are
+  theme variables in `themes.css`. Components use only `var(--…)`, never hex values.
 - CodeMirror styling goes in `EditorView.theme` in `setup.ts`. Plain CSS loses to its
   base theme.
 

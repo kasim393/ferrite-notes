@@ -44,6 +44,12 @@
 </div>
 
 <style>
+  /* Web images (https only, see the CSP in tauri.conf.json) fit the note's width. */
+  .preview :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-sm);
+  }
   .preview {
     flex: 1;
     overflow: auto;
@@ -73,7 +79,7 @@
   .preview :global(pre) {
     background: var(--surface-2);
     padding: 12px 14px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     overflow: auto;
   }
   .preview :global(pre code) {
@@ -97,14 +103,6 @@
   .preview :global(li:has(> input[type='checkbox'])) {
     list-style: none;
     margin-left: -1.4em;
-  }
-  .preview :global(input[type='checkbox']) {
-    width: 16px;
-    height: 16px;
-    margin: 0 8px 0 0;
-    vertical-align: -2px;
-    accent-color: var(--accent);
-    cursor: pointer;
   }
   .preview :global(li:has(> input:checked)) {
     color: var(--text-muted);

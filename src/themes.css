@@ -1,0 +1,685 @@
+/*
+ * Themes ("looks"). `data-look` on <html> picks one; `data-mode` is the resolved
+ * light/dark (store.svelte.ts follows the system setting). Gaming and Terminal are
+ * dark-only. The :root defaults are macOS light, the default look.
+ */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui,
+    Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, 'Roboto Mono', monospace;
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
+  --check-radius: 4px;
+  --cursor-width: 1.5px;
+  --title-size: 1.4em;
+  --title-weight: 600;
+  --titlebar-bg: var(--surface);
+  --titlebar-text: var(--text-muted);
+  --titlebar-border: var(--border);
+  --titlebar-tracking: 0;
+  --titlebar-weight: 500;
+  --selection: color-mix(in srgb, var(--accent) 28%, transparent);
+
+  --bg: #ffffff;
+  --surface: #f2f2f4;
+  --surface-2: #e5e5ea;
+  --selected: #0a64ff;
+  --selected-text: #ffffff;
+  --selected-muted: rgb(255 255 255 / 0.8);
+  --selected-border: transparent;
+  --border: #dcdce0;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --accent: #0a64ff;
+  --on-accent: #ffffff;
+  --mark: #ffe07a;
+  --danger: #e0352b;
+  --ok: #28a745;
+  --warn: #d98e04;
+  --scroll-thumb: rgb(0 0 0 / 0.2);
+  --scroll-thumb-hover: rgb(0 0 0 / 0.35);
+  --check-border: #b4b4bb;
+  --check-bg: var(--accent);
+  --check-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+  color-scheme: light;
+}
+
+/* ---- macOS ---- */
+:root[data-look='macos'][data-mode='dark'] {
+  --bg: #1e1e20;
+  --surface: #29292c;
+  --surface-2: #3a3a3e;
+  --selected: #0a5fd8;
+  --border: #38383c;
+  --text: #f2f2f7;
+  --text-muted: #98989f;
+  --accent: #0a84ff;
+  --mark: #6b5a1a;
+  --danger: #ff5a52;
+  --ok: #32d74b;
+  --warn: #ffb340;
+  --scroll-thumb: rgb(255 255 255 / 0.2);
+  --scroll-thumb-hover: rgb(255 255 255 / 0.35);
+  --check-border: #6c6c72;
+  color-scheme: dark;
+}
+
+/* ---- Gaming (dark only) ---- */
+:root[data-look='gaming'] {
+  --font: Bahnschrift, 'DIN Alternate', 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --radius: 3px;
+  --radius-sm: 2px;
+  --radius-lg: 4px;
+  --check-radius: 2px;
+  --title-weight: 700;
+  --bg: #110d1c;
+  --surface: #171128;
+  --surface-2: #241b3e;
+  --selected: #2a1f4a;
+  --selected-text: #ffffff;
+  --selected-muted: #a99fd0;
+  --selected-border: transparent;
+  --border: #2e2350;
+  --text: #ede8ff;
+  --text-muted: #8c82b0;
+  --accent: #ff2e88;
+  --on-accent: #12061a;
+  --mark: #5a1e7a;
+  --danger: #ff4d5e;
+  --ok: #22e5ff;
+  --warn: #ffc23d;
+  --scroll-thumb: rgb(255 46 136 / 0.45);
+  --scroll-thumb-hover: rgb(255 46 136 / 0.75);
+  --check-border: #6b5d9c;
+  --check-bg: #22e5ff;
+  --check-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23110d1c' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+/* ---- Terminal (dark only): a vintage phosphor CRT ---- */
+:root[data-look='terminal'] {
+  --font: var(--font-mono);
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-lg: 0px;
+  --check-radius: 0px;
+  --cursor-width: 0.62em;
+  --title-size: 1em;
+  --title-weight: 700;
+  --bg: #04110d;
+  --surface: #04110d;
+  --surface-2: #0b2a20;
+  /* Inverse video, like the old screens. */
+  --selected: #8fffd6;
+  --selected-text: #04110d;
+  --selected-muted: #0c4433;
+  --selected-border: transparent;
+  --border: #1f6b53;
+  --text: #8fffd6;
+  --text-muted: #4bb390;
+  --accent: #8fffd6;
+  --on-accent: #04110d;
+  --mark: #1f6b53;
+  --danger: #ff8a7a;
+  --ok: #8fffd6;
+  --warn: #f2e27a;
+  --selection: rgb(143 255 214 / 0.3);
+  --scroll-thumb: #1f6b53;
+  --scroll-thumb-hover: #2e9c79;
+  --check-border: #4bb390;
+  --check-bg: transparent;
+  --check-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 4l8 8M12 4l-8 8' stroke='%238fffd6' stroke-width='2'/%3E%3C/svg%3E");
+  --titlebar-bg: #010403;
+  --titlebar-text: #2e7d63;
+  --titlebar-border: transparent;
+  --titlebar-tracking: 0.04em;
+  color-scheme: dark;
+}
+/* The tube: a dark bezel around the screen. Square corners: a rounded box didn't read as a CRT. */
+:root[data-look='terminal'] .window {
+  background: #010403;
+}
+:root[data-look='terminal'] .app {
+  margin: 4px 10px 10px;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: 0 0 0 2px #0a241b, 0 0 24px rgb(143 255 214 / 0.07);
+  text-shadow: 0 0 3px rgb(143 255 214 / 0.55);
+}
+/* Scanlines and the darker curved edges of the glass, above everything, never in the way. */
+:root[data-look='terminal'] .app::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 58%, rgb(0 0 0 / 0.6) 100%);
+}
+/* Boxed panels and buttons. */
+:root[data-look='terminal'] .sidebar {
+  border-right: 1px solid var(--border);
+}
+:root[data-look='terminal'] .sidebar .item {
+  border: 1px solid transparent;
+}
+:root[data-look='terminal'] .toolbar button,
+:root[data-look='terminal'] .sidebar .tabs button {
+  border: 1px solid var(--border);
+}
+:root[data-look='terminal'] .sidebar .new {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+:root[data-look='terminal'] .sidebar .item.active * {
+  text-shadow: none;
+}
+@media (max-width: 700px) {
+  :root[data-look='terminal'] .app {
+    margin: 4px;
+  }
+}
+
+/* ---- Retro (dark only): worn cassette-futurism hardware ----
+ * Textures are generated by scripts/gen-retro-textures.py (procedural, no photos).
+ * The note stays on a clean, readable LCD; only the casing around it is worn. */
+:root[data-look='retro'] {
+  --font: Bahnschrift, 'DIN Alternate', 'Roboto Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --check-radius: 2px;
+  --cursor-width: 0.6em;
+  --title-weight: 700;
+  --screw: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25' r='75%25'%3E%3Cstop offset='0' stop-color='%23e9e4d6'/%3E%3Cstop offset='.55' stop-color='%23928b7a'/%3E%3Cstop offset='1' stop-color='%233a3630'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='10' cy='10' r='9.5' fill='%23201d18' opacity='.55'/%3E%3Ccircle cx='10' cy='10' r='7.6' fill='url(%23g)' stroke='%23231f19' stroke-width='.8'/%3E%3Cpath d='M6.3 7.6l6.1 6.1M13.7 7.6l-6.1 6.1' stroke='%232a2620' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M6.6 8.4l5.6 5.6' stroke='%23f2eee2' stroke-width='.5' opacity='.6'/%3E%3C/svg%3E");
+  /* The LCD screen (editor, preview, dialogs). */
+  --bg: #1c2614;
+  --surface: #232f19;
+  --surface-2: #2e3d21;
+  --selected: #a8822a;
+  --selected-text: #1d180a;
+  --selected-muted: #3d3112;
+  --selected-border: transparent;
+  --border: #3a4a2c;
+  --text: #b2e874;
+  --text-muted: #6f8f47;
+  --accent: #e2742f;
+  --on-accent: #1d180a;
+  --mark: #5b6b1f;
+  --danger: #ff7a52;
+  --ok: #a8e06b;
+  --warn: #f2c94c;
+  --selection: rgb(168 224 107 / 0.25);
+  --scroll-thumb: #4b5f37;
+  --scroll-thumb-hover: #627a49;
+  --check-border: #6f8f47;
+  --check-bg: #b2e874;
+  --check-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%231c2614' stroke-width='2.4' stroke-linecap='square'/%3E%3C/svg%3E");
+  --titlebar-bg: transparent;
+  --titlebar-text: #e2742f;
+  --titlebar-border: transparent;
+  --titlebar-tracking: 0.18em;
+  --titlebar-weight: 700;
+  color-scheme: dark;
+}
+
+/* The casing: worn grey paint, darker towards the edges, screwed shut at the corners. */
+:root[data-look='retro'] .window {
+  background:
+    radial-gradient(ellipse at 50% 40%, transparent 55%, rgb(0 0 0 / 0.45) 100%),
+    linear-gradient(180deg, rgb(79 87 93 / 0.55), rgb(79 87 93 / 0.15) 60px, transparent 120px),
+    url('./assets/retro/casing.webp') 0 0 / 384px,
+    #4f575d;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 0 0 1px rgb(0 0 0 / 0.6);
+}
+/* Painted-on label, slightly worn. */
+:root[data-look='retro'] .titlebar {
+  height: 40px;
+  padding: 0 28px;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.55), 0 -1px 0 rgb(255 200 150 / 0.15);
+}
+:root[data-look='retro'] .titlebar .title {
+  font-size: 0.92em;
+}
+:root[data-look='retro'] .app {
+  gap: 12px;
+  padding: 2px 16px 18px;
+}
+
+/* The mustard control panel, set into the casing with four screws. */
+:root[data-look='retro'] .sidebar {
+  --surface: transparent;
+  --surface-2: rgb(0 0 0 / 0.12);
+  --text: #231d0c;
+  --text-muted: #4d3f16;
+  --border: rgb(60 45 10 / 0.45);
+  --accent: #8c3a10;
+  color: var(--text);
+  border: 0;
+  border-radius: var(--radius-lg);
+  padding: 10px 6px 6px;
+  background:
+    var(--screw) left 7px top 7px / 14px no-repeat,
+    var(--screw) right 7px top 7px / 14px no-repeat,
+    var(--screw) left 7px bottom 7px / 14px no-repeat,
+    var(--screw) right 7px bottom 7px / 14px no-repeat,
+    linear-gradient(180deg, rgb(255 255 255 / 0.12), transparent 30%, rgb(0 0 0 / 0.18)),
+    /* Worn most at the edges; the middle, behind the text, stays readable. */
+    radial-gradient(ellipse 75% 80% at 50% 50%, rgb(201 160 56 / 0.82) 55%, rgb(201 160 56 / 0.25) 100%),
+    url('./assets/retro/panel.webp') 0 0 / 420px,
+    #c49a33;
+  box-shadow:
+    inset 0 2px 0 rgb(255 240 200 / 0.35),
+    inset 0 -3px 0 rgb(0 0 0 / 0.3),
+    inset 0 0 0 1px rgb(40 30 5 / 0.5),
+    0 3px 0 rgb(0 0 0 / 0.45),
+    0 8px 18px rgb(0 0 0 / 0.45);
+}
+:root[data-look='retro'] .sidebar .title {
+  text-shadow: 0 1px 0 rgb(255 240 200 / 0.35);
+}
+:root[data-look='retro'] .sidebar .item.active {
+  background: rgb(60 45 10 / 0.28);
+  box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.4), 0 1px 0 rgb(255 240 200 / 0.3);
+}
+:root[data-look='retro'] .sidebar footer {
+  border-top-color: rgb(60 45 10 / 0.35);
+}
+
+/* Keys like the hardware's: a domed face, grime in the edges, set in a black well. */
+:root[data-look='retro'] .sidebar .new,
+:root[data-look='retro'] .sidebar .tabs button,
+:root[data-look='retro'] .titlebar .controls button,
+:root[data-look='retro'] dialog .actions button,
+:root[data-look='retro'] dialog .segmented button,
+:root[data-look='retro'] dialog .token button,
+:root[data-look='retro'] dialog header .icon {
+  background: linear-gradient(180deg, #f7f2e4 0%, #e6dec8 45%, #cdc2a3 100%);
+  color: #26231b;
+  border: 1px solid #6d6553;
+  border-radius: 7px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -2px 0 rgb(0 0 0 / 0.18),
+    inset 0 0 7px rgb(90 70 25 / 0.28),
+    0 0 0 3px #1c1b18,
+    0 0 0 4px rgb(255 255 255 / 0.14),
+    0 4px 6px 3px rgb(0 0 0 / 0.45);
+}
+:root[data-look='retro'] .sidebar .new,
+:root[data-look='retro'] .titlebar .controls .close,
+:root[data-look='retro'] dialog .actions .primary {
+  background: linear-gradient(180deg, #f6a466 0%, #e57f3d 45%, #c45f22 100%);
+  border-color: #6b3412;
+  color: #2a1406;
+}
+:root[data-look='retro'] .sidebar .tabs {
+  gap: 12px;
+  padding: 4px 14px 10px;
+}
+:root[data-look='retro'] .sidebar header {
+  gap: 12px;
+  padding: 14px 14px 10px;
+}
+:root[data-look='retro'] .sidebar .tabs button {
+  font-size: 0.82em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+}
+:root[data-look='retro'] .sidebar .tabs button.on,
+:root[data-look='retro'] dialog .segmented button.on,
+:root[data-look='retro'] dialog .actions button:active,
+:root[data-look='retro'] dialog .segmented button:active,
+:root[data-look='retro'] dialog .token button:active,
+:root[data-look='retro'] dialog header .icon:active,
+:root[data-look='retro'] .sidebar .new:active,
+:root[data-look='retro'] .sidebar .tabs button:active,
+:root[data-look='retro'] .titlebar .controls button:active {
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 0.4),
+    inset 0 0 7px rgb(90 70 25 / 0.35),
+    0 0 0 3px #1c1b18,
+    0 0 0 4px rgb(255 255 255 / 0.1),
+    0 2px 3px 3px rgb(0 0 0 / 0.4);
+  transform: translateY(1px);
+  filter: brightness(0.93);
+}
+/* Window keys: printed labels instead of icons; no Windows hover colours. */
+:root[data-look='retro'] .titlebar .controls {
+  gap: 14px;
+  padding-right: 6px;
+}
+:root[data-look='retro'] .titlebar .controls button {
+  width: 46px;
+  height: 24px;
+  margin: 0;
+  font-size: 0.68em;
+}
+:root[data-look='retro'] .titlebar .controls button svg {
+  display: none;
+}
+.key-label {
+  display: none;
+}
+:root[data-look='retro'] .key-label {
+  display: inline;
+}
+:root[data-look='retro'] .titlebar .controls button:hover {
+  filter: brightness(1.05);
+  color: #26231b;
+}
+:root[data-look='retro'] .titlebar .controls .close:hover {
+  background: linear-gradient(180deg, #f6a466 0%, #e57f3d 45%, #c45f22 100%);
+  border-color: #6b3412;
+  color: #2a1406;
+}
+
+/* Settings: a mustard control panel too, screwed on, with LCD fields and hardware keys. */
+:root[data-look='retro'] dialog {
+  --text: #231d0c;
+  --text-muted: #4d3f16;
+  --border: rgb(60 45 10 / 0.4);
+  --surface: rgb(0 0 0 / 0.08);
+  --accent: #8c3a10;
+  color: var(--text);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background:
+    var(--screw) left 8px top 8px / 14px no-repeat,
+    var(--screw) right 8px top 8px / 14px no-repeat,
+    var(--screw) left 8px bottom 8px / 14px no-repeat,
+    var(--screw) right 8px bottom 8px / 14px no-repeat,
+    linear-gradient(180deg, rgb(255 255 255 / 0.12), transparent 30%, rgb(0 0 0 / 0.18)),
+    radial-gradient(ellipse 75% 80% at 50% 50%, rgb(201 160 56 / 0.82) 55%, rgb(201 160 56 / 0.25) 100%),
+    url('./assets/retro/panel.webp') 0 0 / 420px,
+    #c49a33;
+  box-shadow:
+    inset 0 2px 0 rgb(255 240 200 / 0.35),
+    inset 0 -3px 0 rgb(0 0 0 / 0.3),
+    inset 0 0 0 1px rgb(40 30 5 / 0.5),
+    0 12px 40px rgb(0 0 0 / 0.6);
+}
+:root[data-look='retro'] dialog h2,
+:root[data-look='retro'] dialog h3 {
+  color: #231d0c;
+  text-shadow: 0 1px 0 rgb(255 240 200 / 0.35);
+}
+:root[data-look='retro'] dialog h3 {
+  letter-spacing: 0.12em;
+}
+:root[data-look='retro'] dialog .path,
+:root[data-look='retro'] dialog code {
+  color: #231d0c;
+}
+:root[data-look='retro'] dialog input:not([type='checkbox']) {
+  background: #1c2614;
+  color: #b2e874;
+  border: 2px solid #14120c;
+  box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.6), 0 1px 0 rgb(255 240 200 / 0.35);
+  font-family: var(--font-mono);
+  text-shadow: 0 0 2px rgb(168 224 107 / 0.45);
+}
+:root[data-look='retro'] dialog .segmented {
+  gap: 12px;
+  padding: 4px;
+  background: none;
+}
+:root[data-look='retro'] dialog .actions {
+  gap: 14px;
+}
+:root[data-look='retro'] dialog .actions button,
+:root[data-look='retro'] dialog .segmented button {
+  font-size: 0.82em;
+  text-transform: uppercase;
+}
+:root[data-look='retro'] dialog header .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  /* Clear of the panel's corner screw. */
+  margin: 8px 20px 0 0;
+}
+:root[data-look='retro'] dialog .look.on {
+  border-color: #231d0c;
+}
+:root[data-look='retro'] dialog .look:hover {
+  background: rgb(0 0 0 / 0.08);
+}
+:root[data-look='retro'] dialog .status {
+  color: #3d4f12;
+}
+
+/* The search box is a small LCD set into the panel. */
+:root[data-look='retro'] .sidebar input[type='search'] {
+  background: #1c2614;
+  color: #b2e874;
+  border: 2px solid #14120c;
+  box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.6), 0 1px 0 rgb(255 240 200 / 0.35);
+  font-family: var(--font-mono);
+}
+
+/* The note is the big LCD, behind glass, in a screwed-on brass bezel. */
+:root[data-look='retro'] .pane {
+  --font: var(--font-mono);
+  position: relative;
+  overflow: hidden;
+  border: 12px solid transparent;
+  border-radius: 20px;
+  background:
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    /* On the rails next to each corner, clear of the rounding. */
+    var(--screw) left 16px top 1px / 10px no-repeat border-box,
+    var(--screw) right 16px top 1px / 10px no-repeat border-box,
+    var(--screw) left 16px bottom 1px / 10px no-repeat border-box,
+    var(--screw) right 16px bottom 1px / 10px no-repeat border-box,
+    linear-gradient(180deg, rgb(255 240 200 / 0.25), transparent 40%, rgb(0 0 0 / 0.35)) border-box,
+    url('./assets/retro/brass.webp') 0 0 / 256px border-box;
+  box-shadow:
+    inset 0 0 0 2px #0d1109,
+    inset 0 0 48px rgb(0 0 0 / 0.65),
+    0 0 0 1px #2a2010,
+    0 3px 0 rgb(0 0 0 / 0.45),
+    0 8px 18px rgb(0 0 0 / 0.45);
+  font-family: var(--font-mono);
+  text-shadow: 0 0 2px rgb(168 224 107 / 0.45);
+}
+/* Scanlines and a soft glare on the glass. */
+:root[data-look='retro'] .pane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 40% at 25% 0%, rgb(255 255 255 / 0.07), transparent 70%),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.18) 0 1px, transparent 1px 3px);
+}
+:root[data-look='retro'] .pane .toolbar {
+  border-bottom-color: #10160b;
+}
+
+/* A status lamp on the casing: green when saved and synced, amber while busy, red on errors. */
+.lamp {
+  display: none;
+}
+:root[data-look='retro'] .lamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #c9c2ad;
+  font-size: 0.68em;
+  letter-spacing: 0.12em;
+}
+:root[data-look='retro'] .lamp::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #d9ffc0, #57b42a 55%, #24440f);
+  box-shadow: 0 0 6px rgb(120 230 80 / 0.7), inset 0 0 0 1px rgb(0 0 0 / 0.5);
+}
+:root[data-look='retro'] .lamp.busy::before {
+  background: radial-gradient(circle at 35% 30%, #fff1c0, #f0a224 55%, #5a3a08);
+  box-shadow: 0 0 8px rgb(255 170 50 / 0.85), inset 0 0 0 1px rgb(0 0 0 / 0.5);
+  animation: lamp-blink 0.6s steps(2) infinite;
+}
+:root[data-look='retro'] .lamp.error::before {
+  background: radial-gradient(circle at 35% 30%, #ffd0c0, #e0442a 55%, #4a0f06);
+  box-shadow: 0 0 8px rgb(255 80 50 / 0.8), inset 0 0 0 1px rgb(0 0 0 / 0.5);
+}
+@keyframes lamp-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-look='retro'] .lamp.busy::before {
+    animation: none;
+  }
+}
+
+@media (max-width: 700px) {
+  :root[data-look='retro'] .app {
+    padding: 8px;
+  }
+  :root[data-look='retro'] .pane {
+    border-width: 8px;
+  }
+}
+
+/* ---- E-ink: paper by day, low glow by night ---- */
+:root[data-look='eink'] {
+  --font: Georgia, 'Noto Serif', 'Droid Serif', serif;
+  --radius: 4px;
+  --radius-sm: 3px;
+  --radius-lg: 6px;
+  --check-radius: 2px;
+  --title-weight: 700;
+  --bg: #f0efeb;
+  --surface: #e7e6e1;
+  --surface-2: #dad9d3;
+  --selected: transparent;
+  --selected-text: #000000;
+  --selected-muted: #55544f;
+  --selected-border: #1a1a1a;
+  --border: #c9c8c1;
+  --text: #1a1a1a;
+  --text-muted: #55544f;
+  --accent: #1a1a1a;
+  --on-accent: #f0efeb;
+  --mark: #cfcdc4;
+  --danger: #8a1c1c;
+  --ok: #1a1a1a;
+  --warn: #5a4a12;
+  --scroll-thumb: rgb(0 0 0 / 0.3);
+  --scroll-thumb-hover: rgb(0 0 0 / 0.5);
+  --check-border: #1a1a1a;
+  --check-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23f0efeb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+:root[data-look='eink'][data-mode='dark'] {
+  --bg: #121212;
+  --surface: #181818;
+  --surface-2: #262626;
+  --selected-text: #e4e2db;
+  --selected-muted: #8a8882;
+  --selected-border: #8a8882;
+  --border: #2c2c2c;
+  --text: #c9c7c0;
+  --text-muted: #8a8882;
+  --accent: #d8d6cf;
+  --on-accent: #121212;
+  --mark: #3a3934;
+  --danger: #d27a6e;
+  --ok: #c9c7c0;
+  --warn: #c9b36a;
+  --scroll-thumb: rgb(255 255 255 / 0.18);
+  --scroll-thumb-hover: rgb(255 255 255 / 0.32);
+  --check-border: #8a8882;
+  --check-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23121212' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+/* ---- Title bar per look ---- */
+:root[data-look='gaming'] {
+  --titlebar-bg: #0c0915;
+  --titlebar-text: #ff2e88;
+  --titlebar-border: #ff2e88;
+  --titlebar-tracking: 0.22em;
+  --titlebar-weight: 700;
+}
+:root[data-look='eink'] {
+  --titlebar-text: var(--text);
+}
+
+/* ---- Scrollbars: thin, rounded, in the theme's colours ---- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
+}
+:root[data-look='terminal'] ::-webkit-scrollbar-thumb {
+  border-radius: 0;
+}
+
+/* ---- Checkboxes: one look for the editor and the preview, drawn by the theme ---- */
+.cm-task-checkbox,
+.preview input[type='checkbox'] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0 6px 0 0;
+  vertical-align: -3px;
+  border: 1.5px solid var(--check-border);
+  border-radius: var(--check-radius);
+  background: transparent;
+  cursor: pointer;
+}
+.cm-task-checkbox:checked,
+.preview input[type='checkbox']:checked {
+  border-color: var(--check-bg);
+  background: var(--check-bg) var(--check-icon) center / 12px no-repeat;
+}
+:root[data-look='terminal'] .cm-task-checkbox:checked,
+:root[data-look='terminal'] .preview input[type='checkbox']:checked {
+  border-color: var(--check-border);
+}
+.cm-task-checkbox:focus-visible,
+.preview input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---- Per-look touches ---- */
+/* Terminal: a "# " prompt before the title line. */
+:root[data-look='terminal'] .cm-title-line::before {
+  content: '# ';
+  color: var(--text-muted);
+}
+/* Gaming: a cyan bar on the open note, cut corners on the new-note button. */
+:root[data-look='gaming'] .sidebar .item.active {
+  box-shadow: inset 3px 0 0 #22e5ff;
+}
+:root[data-look='gaming'] .sidebar .new {
+  clip-path: polygon(25% 0, 100% 0, 100% 75%, 75% 100%, 0 100%, 0 25%);
+}

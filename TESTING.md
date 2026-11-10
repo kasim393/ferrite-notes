@@ -58,7 +58,22 @@ The first run compiles Tauri, which takes a few minutes. Later runs are fast.
 - [ ] Paste `<script>alert(1)</script>` and preview it. Nothing runs.
 
 **Theme and layout**
-- [ ] Settings (gear icon in the sidebar footer) → Theme switches between System, Light, and Dark.
+- [ ] A fresh install starts in macOS, following the system's light or dark setting.
+- [ ] Settings (gear icon in the sidebar footer) → Theme: each of macOS, Gaming, Terminal,
+      Retro and E-ink changes the whole app at once. The choice is still there after a restart.
+- [ ] macOS and E-ink show System / Light / Dark. Gaming, Terminal and Retro say "always dark".
+- [ ] Terminal: square screen in a dark bezel, scanlines, glow, a blinking block cursor, `# ` before the
+      title, `[x]` ticks, and the selected note in inverse video.
+- [ ] Retro: worn, scratched grey casing with screws, a mustard panel worn at the edges, a brass
+      bezel around the green LCD, keys that press in, beige window keys, and a TX/RX lamp
+      that blinks while saving or syncing. Resize the window: the textures repeat with no seams.
+- [ ] Title bar (desktop): drag it to move the window; double-click maximizes. Minimize,
+      maximize/restore and close work. macOS shows three dots on the left; the others show
+      buttons on the right. Resizing from the window edges still works. Closing saves the note.
+- [ ] Scrollbars are thin and rounded (square in Terminal) in every theme. Scroll a long note
+      and a long list.
+- [ ] List: notes with tasks show "2 of 5". Previews show plain text, not `- [ ]`.
+- [ ] The first line of a note is bigger, like a title.
 - [ ] `Ctrl+B` or the panel icon at the left of the top bar hides and shows the sidebar, including while typing in the editor. The choice is still there after restarting the app. `Ctrl+F` with the sidebar hidden brings it back and focuses search.
 - [ ] Shrink the window to under 700px wide. The app shows only the list, then only the note after you open one, with a ‹ back button.
 

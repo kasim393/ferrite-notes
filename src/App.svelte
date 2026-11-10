@@ -8,6 +8,10 @@
   import Preview from './lib/components/Preview.svelte';
   import Icon from './lib/components/Icon.svelte';
   import SettingsDialog from './lib/components/SettingsDialog.svelte';
+  import Titlebar from './lib/components/Titlebar.svelte';
+
+  /** Phones have no window frame to replace. */
+  const desktop = !/Android|iPhone|iPad/.test(navigator.userAgent);
 
   const narrowScreen = window.matchMedia('(max-width: 700px)');
 
@@ -139,6 +143,8 @@
 
 <svelte:window {onkeydown} />
 
+<div class="window">
+{#if desktop}<Titlebar />{/if}
 <div class="app" class:has-note={store.current != null} class:sidebar-collapsed={store.sidebarCollapsed}>
   <Sidebar />
 
@@ -214,16 +220,24 @@
     </div>
   {/if}
 </div>
+</div>
 
 <style>
-  .app {
-    display: grid;
-    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  .window {
+    display: flex;
+    flex-direction: column;
     height: 100vh;
     height: 100dvh;
     /* Android draws edge to edge: keep clear of the status and gesture bars. */
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
       env(safe-area-inset-left);
+  }
+  .app {
+    position: relative;
+    display: grid;
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   }
   .pane {
     display: flex;
@@ -250,7 +264,7 @@
     border: 0;
     background: none;
     color: var(--text-muted);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
   }
   .toolbar button:hover {
@@ -297,7 +311,7 @@
     gap: 12px;
     max-width: calc(100vw - 32px);
     padding: 10px 14px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     background: var(--danger);
     color: #fff;
     box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);

@@ -8,7 +8,11 @@ import {
   type Settings,
   type SyncStatus,
   type Theme,
+  type Look,
+  LOOKS,
 } from './api';
+
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
 
 const SAVE_DELAY_MS = 400;
 const LAST_NOTE_KEY = 'ferrite:lastNote';
@@ -73,6 +77,7 @@ class Store {
   saveStatus = $state<SaveStatus>('saved');
   error = $state<string | null>(null);
   theme = $state<Theme>('system');
+  look = $state<Look>('macos');
   syncStatus = $state<SyncStatus>({ state: 'off', lastSyncedAt: null, message: null });
   settingsOpen = $state(false);
   sidebarCollapsed = $state(loadSidebarCollapsed());
@@ -94,7 +99,8 @@ class Store {
   async init() {
     try {
       const settings = await api.getSettings();
-      this.setTheme(settings.theme, false);
+      this.setAppearance(settings.look, settings.theme, false);
+      systemDark.addEventListener('change', () => this.applyAppearance());
       // Rust pushes sync progress and remote changes as events; no polling here.
       await listen<SyncStatus>('sync-status', (e) => (this.syncStatus = e.payload));
       await listen<string[]>('notes-changed', (e) => void this.onRemoteChanges(e.payload));
@@ -350,16 +356,37 @@ class Store {
     }
   }
 
-  setTheme(theme: Theme, persist = true) {
+  /** Whether the current look has both a light and a dark version. */
+  get lookHasModes(): boolean {
+    return !LOOKS.find((l) => l.value === this.look)?.darkOnly;
+  }
+
+  setAppearance(look: Look, theme: Theme, persist = true) {
+    this.look = LOOKS.some((l) => l.value === look) ? look : 'macos';
     this.theme = theme;
-    if (theme === 'system') delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = theme;
+    this.applyAppearance();
     if (persist) {
       api
         .getSettings()
-        .then((s) => api.setSettings({ ...s, theme }))
+        .then((s) => api.setSettings({ ...s, look: this.look, theme }))
         .catch((e) => this.fail(e));
     }
+  }
+
+  setTheme(theme: Theme) {
+    this.setAppearance(this.look, theme);
+  }
+
+  setLook(look: Look) {
+    this.setAppearance(look, this.theme);
+  }
+
+  /** Puts the look and the resolved light/dark mode on <html> for themes.css. */
+  applyAppearance() {
+    const root = document.documentElement;
+    const dark = !this.lookHasModes || this.theme === 'dark' || (this.theme === 'system' && systemDark.matches);
+    root.dataset.look = this.look;
+    root.dataset.mode = dark ? 'dark' : 'light';
   }
 }
 
