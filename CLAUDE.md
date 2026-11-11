@@ -340,9 +340,22 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
   - Debugging: debug builds expose WebView DevTools. Run `adb forward tcp:9333
     localabstract:webview_devtools_remote_<pid>`, then use chrome://inspect or CDP.
 
-**Then:** the rest of milestone 10:
-- GitHub Actions to build the Windows zip/installer, Linux AppImage, and macOS .app on
-  release tags.
+**Milestone 10, CI (added 2026-11-11, not yet run on GitHub at the time of writing):**
+- `.github/workflows/ci.yml`: on pushes to main and pull requests, `npm run check`,
+  `npm run build`, `cargo test --lib --locked` and `cargo clippy -- -D warnings` on
+  Ubuntu 22.04, plus the Worker's typecheck and tests.
+- `.github/workflows/release.yml`: on `v*` tags, `tauri-action` builds Windows (NSIS +
+  MSI), Linux (AppImage, deb, rpm on Ubuntu 22.04 for older glibc) and macOS (universal
+  dmg) into a **draft** release. Windows then adds the portable zip
+  (`package-portable.mjs --no-build`), and `scripts/collect-release-files.mjs` copies
+  every file into `out/` (spaces → dots, like GitHub's asset names) and writes
+  `SHA256SUMS-<os>.txt`. `actions/attest-build-provenance` signs a provenance attestation
+  for each file (`gh attestation verify <file> --repo kasim393/ferrite-notes`).
+- Builds are unsigned. The plan: apply to SignPath Foundation (free code signing for
+  open source) once a few CI-built releases exist; paid options are Microsoft Trusted
+  Signing (individuals only in some countries) or a CA certificate.
+- Re-zipping changes the zip's checksum (zip stores timestamps), so publish checksums
+  from the exact files you upload; CI does this automatically.
 - iOS is optional (it needs a paid Apple account).
 
 **Later or optional:**

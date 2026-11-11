@@ -1,5 +1,6 @@
 // Builds the Windows portable zip: the app, the `portable` marker, and a README.
 //   npm run package:portable  →  release/Ferrite-Notes-<version>-portable-windows-<arch>.zip
+//   node scripts/package-portable.mjs --no-build   (zip an existing release build)
 // Linux (AppImage) and macOS (.app) builds have to run on those systems.
 
 import { execSync } from 'node:child_process';
@@ -20,8 +21,13 @@ const releaseDir = join(root, 'release');
 const stage = join(releaseDir, name);
 const zip = join(releaseDir, `${name}.zip`);
 
-console.log('▸ Building the release app (no installers)');
-execSync('npx tauri build --no-bundle', { cwd: root, stdio: 'inherit' });
+// --no-build: package the exe an earlier `tauri build` made (CI builds once, then zips).
+if (process.argv.includes('--no-build')) {
+  console.log('▸ Using the existing release build');
+} else {
+  console.log('▸ Building the release app (no installers)');
+  execSync('npx tauri build --no-bundle', { cwd: root, stdio: 'inherit' });
+}
 
 console.log(`▸ Staging ${name}`);
 rmSync(stage, { recursive: true, force: true });

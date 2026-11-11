@@ -52,9 +52,21 @@ your system's light or dark mode, or you can fix one.
 
 ## Download
 
-Ready-made builds will be published on the
-[Releases](https://github.com/kasim393/ferrite-notes/releases) page. Until then, build it
-from source (below); it takes a few minutes the first time.
+Get the latest version from the
+[Releases](https://github.com/kasim393/ferrite-notes/releases) page: an installer or a
+portable zip for Windows, an AppImage / `.deb` / `.rpm` for Linux, and a `.dmg` for macOS.
+
+The builds aren't code-signed yet, so Windows SmartScreen may warn ("More info → Run
+anyway") and macOS may need right-click → Open the first time. Instead, every file is
+built by GitHub Actions from this repository's public code, with a published checksum and
+a signed build attestation, so you can check exactly where it came from:
+
+```bash
+gh attestation verify Ferrite.Notes_0.1.1_x64-setup.exe --repo kasim393/ferrite-notes
+```
+
+You can also compare a download with the `SHA256SUMS-*.txt` file in the release
+(`Get-FileHash <file>` in PowerShell, `shasum -a 256 <file>` on macOS and Linux).
 
 ## Build from source
 

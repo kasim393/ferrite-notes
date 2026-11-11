@@ -1,0 +1,99 @@
+# Builds Ferrite Notes for Windows, Linux and macOS when a version tag is pushed:
+#   git tag v0.1.1 && git push origin v0.1.1
+# Everything lands in a DRAFT GitHub release (review it, then press Publish), with
+# SHA-256 checksums and build attestations: signed, public proof that each file was
+# built here from this repository's code. Verify one with:
+#   gh attestation verify <file> --repo kasim393/ferrite-notes
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write      # create the draft release and upload files
+  id-token: write      # sign the build attestations (Sigstore)
+  attestations: write  # store the attestations on GitHub
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            args: ''
+          - name: Linux
+            os: ubuntu-22.04  # older glibc = the AppImage/deb run on more distros
+            args: ''
+          - name: macOS (Apple Silicon + Intel)
+            os: macos-latest
+            args: --target universal-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux libraries for Tauri
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Build and upload to the draft release
+        id: tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Ferrite Notes ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+          releaseBody: |
+            See the assets below. Each platform's `SHA256SUMS-*.txt` lists checksums, and every
+            file has a build attestation proving it was built by GitHub Actions from this
+            repository: `gh attestation verify <file> --repo ${{ github.repository }}`.
+
+            The builds aren't code-signed yet: Windows SmartScreen may say "Windows protected
+            your PC" (More info → Run anyway), and macOS may need right-click → Open the first time.
+          args: ${{ matrix.args }}
+
+      - name: Portable zip (Windows)
+        if: runner.os == 'Windows'
+        run: node scripts/package-portable.mjs --no-build
+
+      - name: Collect release files and checksums
+        env:
+          ARTIFACTS: ${{ steps.tauri.outputs.artifactPaths }}
+        run: node scripts/collect-release-files.mjs ${{ runner.os }}
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: out/*
+
+      - name: Upload the portable zip and checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          extra=("SHA256SUMS-${RUNNER_OS}.txt")
+          for z in out/*portable*.zip; do [ -e "$z" ] && extra+=("$z"); done
+          gh release upload "${{ github.ref_name }}" "${extra[@]}" --clobber

@@ -4,3 +4,7 @@ src-tauri/target/
 src-tauri/gen/schemas/
 *.log
 release/
+
+# Release CI scratch (scripts/collect-release-files.mjs)
+out/
+SHA256SUMS-*.txt

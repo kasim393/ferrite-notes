@@ -47,6 +47,15 @@ are the way they are. Please skim it first.
   keeps the placeholder id in git.
 - Write clear commit messages: a short summary line, then what changed and why.
 
+## Making a release (maintainers)
+
+1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and
+   `src-tauri/tauri.conf.json`, update `Cargo.lock` (`cargo check`), and commit.
+2. Tag and push: `git tag v0.1.1 && git push origin v0.1.1`.
+3. The **Release** workflow builds Windows, Linux and macOS, adds the portable zip, writes
+   `SHA256SUMS-*.txt` and attaches build attestations, all in a **draft** release.
+4. Check the draft, write the release notes, and press **Publish**.
+
 ## Reporting bugs
 
 Open an issue with your OS and app version, what you did, what you expected and what
