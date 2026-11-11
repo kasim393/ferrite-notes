@@ -10,7 +10,7 @@ Windows · macOS · Linux · Android
 
 </div>
 
-![Ferrite Notes in the macOS theme: a note list on the left and a task list on the right](docs/screenshots/macos-light.webp)
+![Ferrite Notes demo: typing a task list, ticking tasks, searching, and switching through the macOS, Terminal, Retro, Gaming and E-ink themes](docs/demo.webp)
 
 Ferrite Notes is a small notes app built with Rust and Tauri. It opens in about a third of a
 second, works fully offline, and keeps your notes as plain Markdown in a local SQLite
