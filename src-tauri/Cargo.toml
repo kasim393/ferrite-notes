@@ -1,7 +1,10 @@
 [package]
 name = "ferrite-notes"
 version = "0.1.0"
-description = "Fast, lightweight notes"
+description = "Fast, light, offline-first notes with tasks, search and optional self-hosted sync"
+authors = ["Kasim"]
+license = "MIT"
+repository = "https://github.com/kasim393/ferrite-notes"
 edition = "2021"
 
 [lib]

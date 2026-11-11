@@ -1,0 +1,45 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a note with a task list
+        2. Press Ctrl+Enter on two lines
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: 0.1.0
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Windows, macOS, Linux, Android]
+    validations:
+      required: true
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Theme
+      options: [macOS, Gaming, Terminal, Retro, E-ink, Not theme related]
+  - type: checkboxes
+    id: sync
+    attributes:
+      label: Sync
+      options:
+        - label: Sync is turned on
+  - type: markdown
+    attributes:
+      value: Never paste your sync token. For security problems, see SECURITY.md instead.

@@ -32,6 +32,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Kasim",
+    "copyright": "Copyright (c) 2026 Kasim. MIT License.",
+    "license": "MIT",
+    "homepage": "https://github.com/kasim393/ferrite-notes",
+    "category": "Productivity",
+    "shortDescription": "Fast, light, offline-first notes",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -44,6 +44,12 @@
 </div>
 
 <style>
+  /* The first line is the note's title, as in the editor. */
+  .preview > :global(p:first-child) {
+    font-size: var(--title-size);
+    font-weight: var(--title-weight);
+    line-height: 1.4;
+  }
   /* Web images (https only, see the CSP in tauri.conf.json) fit the note's width. */
   .preview :global(img) {
     max-width: 100%;

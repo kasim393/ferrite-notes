@@ -2,6 +2,14 @@
   "name": "ferrite-notes-sync",
   "private": true,
   "version": "0.1.0",
+  "description": "Self-hosted sync server for Ferrite Notes (Cloudflare Worker + D1)",
+  "license": "MIT",
+  "author": "Kasim",
+  "homepage": "https://github.com/kasim393/ferrite-notes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kasim393/ferrite-notes.git"
+  },
   "type": "module",
   "scripts": {
     "setup": "node scripts/setup.mjs",
