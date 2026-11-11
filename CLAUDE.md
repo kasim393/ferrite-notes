@@ -251,6 +251,14 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
     `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9223` and read
     `performance` timings over CDP. Seed a 5,000-note database with
     `FERRITE_SEED_DB=<path>` plus the benchmark command.
+  - **Scrolling with CPU drawing:** every effect over or behind a scrolling area is redrawn
+    on each frame. Measured by CPU time of the WebView2 process tree during a 4 s scripted
+    scroll of a 600-line note (scroll test via CDP): macOS ~2.4 s, Retro was 11.9 s
+    (visible lag), Terminal ~4.3 s. Fixes, now ~2.5 s for all three: no blurred
+    `box-shadow` behind the text (Retro's vignette is a radial gradient instead), overlays
+    (scanlines, glare, vignette) on a cached layer with `will-change: transform`, and an
+    opaque background on the scroller (`.cm-scroller`, `.preview`). Check new effects the
+    same way.
   - **No log files.** They aren't worth it for a local app that never sends data
     anywhere. Only the startup marker and `eprintln!` remain.
 - **App icon:** iron's periodic-table tile: a big silver "Fe" on brushed dark iron, with
