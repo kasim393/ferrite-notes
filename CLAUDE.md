@@ -1,7 +1,7 @@
 # Ferrite Notes – project context
 
 This is the hand-off file for a new chat. Read it first, then `PLAN.md` (the original
-plan) and `TESTING.md` (the manual test checklist). Last updated 2026-11-10.
+plan) and `TESTING.md` (the manual test checklist). Last updated 2026-11-11.
 
 Ferrite Notes is a fast, light, offline-first notes app for quick notes, task lists and bug
 lists. It has clickable checkboxes, a markdown preview, full-text search, pin/trash, and
@@ -18,12 +18,12 @@ portable zip), Linux, macOS, Android, and optionally iOS.
 | 8 | Portable zip, export, backups | ✅ Windows done. Linux AppImage / macOS .app not yet (need CI) |
 | — | SQLite size trim | ✅ Done (exe 6.96 → 6.73 MB, zip ~3.2 MB) |
 | 9 | Android (+ mobile layout) | 🚧 In progress: TESTING.md Android checklist passed on the user's phone; release APK left |
-| — | Design / UX pass | 🚧 Themes built (2026-11-10): macOS (default), Gaming, Terminal (CRT), Retro, E-ink. Own title bar. User testing next |
+| — | Design / UX pass | ✅ Done (2026-11-11): macOS (default), Gaming, Terminal (CRT), Retro, E-ink; own title bar; Fe icon. On desktop and phone |
 | 10 | Hardening: perf targets, CI releases | Perf measured and tuned (2026-11-10). Logs dropped. CI after the design pass |
 
 Commits so far: `f8829a5` (M1–4) → `61ba0fe` (multi-check, icons) → `ee54d78` (sync) →
 `c4f2296` (M8) → `298d036` (SQLite trim) → `1f4fb7a` (collapsible sidebar) →
-the "Android app (M9)" commit. The branch is `main`, with no remote yet.
+`f27f243` (Android M9) → `dc360fe` (perf) → `f54f303` (design pass) → the Retro bezel fix. The branch is `main`, with no remote yet.
 
 ## Layout
 
@@ -167,9 +167,9 @@ Run the Rust commands from `src-tauri/`, so `.cargo/config.toml` (the SQLite fla
       well (a `box-shadow` ring). The window keys are printed MIN / MAX / OFF, and OFF
       (close) is orange. Settings is a screwed-on mustard panel with LCD fields and the
       same keys.
-    - The LCD is rounded inside the brass bezel: an outer radius of 20 px with a 12 px
-      border gives an 8 px inner radius. The bezel screws sit on the rails next to each
-      corner, clear of the curve.
+    - The bezel has the panel's corner radius (`--radius-lg`, 12 px). The LCD is its own
+      rounded layer (`.pane::before`, 8 px radius, inset by `--bezel`), so it stays rounded
+      inside. The scanlines (`.pane::after`) use the same inset.
     - A TX/RX lamp in the title bar is green when idle, blinks amber while saving or
       syncing, and goes red on an error.
   - The block cursor needs CodeMirror's `drawSelection()`, since the native caret can't be
@@ -337,8 +337,7 @@ Motorola Edge 70 Fusion over USB.
   - Debugging: debug builds expose WebView DevTools. Run `adb forward tcp:9333
     localabstract:webview_devtools_remote_<pid>`, then use chrome://inspect or CDP.
 
-**Then:** a design pass and new themes (desktop and mobile together). After that, the
-rest of milestone 10:
+**Then:** the rest of milestone 10:
 - GitHub Actions to build the Windows zip/installer, Linux AppImage, and macOS .app on
   release tags.
 - iOS is optional (it needs a paid Apple account).
