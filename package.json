@@ -1,7 +1,7 @@
 {
   "name": "ferrite-notes",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fast, light, offline-first notes with tasks, search and optional self-hosted sync",
   "license": "MIT",
   "author": "Kasim",
